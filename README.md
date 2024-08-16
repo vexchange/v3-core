@@ -71,28 +71,30 @@ V1.0
 - Refer to this spreadsheet for detailed [calculations](https://docs.google.com/spreadsheets/d/1oAn8ghqK1MThrgOcHUl8nP_ATTpnlmMqnDtqBXxeHJs/edit#gid=0)
 
 - `ReservoirPair::maxChangeRate`
+  - The rates proposed below are derived from most violent price change over a 1-year lookback period from August 2024.
   - BTC-ETH pair
-    - Fixed at 0.0005e18 (5bp/s)
-    - Implies that:
+    - Fixed at 0.0012e18 (12 bp/s)
+    - This rate implies that:
       - price can change 3% in 1 minute if swapped once per minute 
       - price can change 6.09% in 2 minute if swapped once per minute
       - Price can change 34.39% in 10 minutes if swapped once per minute
         - compared to 30% in 10 minutes if swapped only once per 10 minutes 
         - compared to 34.97% in 10 minutes if swapped once per second
-      - In the most violent run
+  - BTC-USDC pair 
+    - Fixed at 0.0007 (7 bp/s)
   - ETH-USDC pair
-    - Fixed at 0.0005e18 (5bp/s)
+    - Fixed at 0.0014e18 (14 bp/s)
   - Stable Pairs
-    - Fixed at ...
+    - Fixed at 0.0001e18 (1 bp/s)
 
 - TWAP Period
-  - BTC-ETH pair
-    - 15 min
-  - ETH-USDC pair
-    - 15 min
+    - 15 min for all pairs
 
 - Max price change within one trade
-  - team intuits it should be set somewhere between 1-3% 
+  - Volatile Pairs
+    - 2% 
+  - Stable Pairs 
+    - 0.1%
 
 ## Contributing
 
