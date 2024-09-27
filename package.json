@@ -33,6 +33,7 @@
     "coverage": "export FOUNDRY_PROFILE=coverage && script/coverage_patch_deployer.sh && forge coverage --report lcov",
     "deploy:avax:test": "forge script script/DeployScript.s.sol --target-contract DeployScript --fork-url \"http://127.0.0.1:8545\" --broadcast -vvvv --verify --ledger --mnemonic-derivation-paths \"m/44'/60'/0'/0/1\" --sender 0x2508b97B8041960ccA8AaBC7662F07EC8e285F6d",
     "deploy:avax": "forge script script/DeployScript.s.sol --target-contract DeployScript --fork-url https://api.avax.network/ext/bc/C/rpc  --broadcast -vvvv --verify --ledger --mnemonic-derivation-paths \"m/44'/60'/0'/0/1\" --sender 0x2508b97B8041960ccA8AaBC7662F07EC8e285F6d",
+    "setManager:avax": "forge script script/SetAssetManagerForPair.s.sol --target-contract SetAssetManagerForPair --fork-url https://api.avax.network/ext/bc/C/rpc  --broadcast -vvvv --verify --ledger --mnemonic-derivation-paths \"m/44'/60'/0'/0/1\" --sender 0x2508b97B8041960ccA8AaBC7662F07EC8e285F6d",
     "eslint": "npm run eslint:check",
     "eslint:check": "eslint scripts",
     "eslint:fix": "eslint scripts --fix",
