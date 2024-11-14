@@ -10,29 +10,28 @@ import { Address } from "@openzeppelin/utils/Address.sol";
 
 import { IAssetManagedPair } from "src/interfaces/IAssetManagedPair.sol";
 import { IAssetManager, IERC20 } from "src/interfaces/IAssetManager.sol";
-import { IPoolAddressesProvider } from "src/interfaces/aave/IPoolAddressesProvider.sol";
-import { IPool } from "src/interfaces/aave/IPool.sol";
-import { IAaveProtocolDataProvider } from "src/interfaces/aave/IAaveProtocolDataProvider.sol";
-import { IRewardsController } from "src/interfaces/aave/IRewardsController.sol";
+import { IEVault } from "src/interfaces/euler/IEvault.sol";
 
-contract AaveManager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
+contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     using FixedPointMathLib for uint256;
     using SafeCast for uint256;
 
-    event Pool(IPool newPool);
-    event DataProvider(IAaveProtocolDataProvider newDataProvider);
-    event RewardsController(IRewardsController newRewardsController);
     event Guardian(address newGuardian);
     event WindDownMode(bool windDown);
     event Thresholds(uint128 newLowerThreshold, uint128 newUpperThreshold);
     event Investment(IAssetManagedPair pair, IERC20 token, uint256 shares);
     event Divestment(IAssetManagedPair pair, IERC20 token, uint256 shares);
 
-    /// @dev tracks how many aToken each pair+token owns
+    /// @dev Mapping from ERC20 asset to an Euler vault.
+    /// This implies that for a given asset, there can only be one vault
+    mapping(IERC20 => IEVault) public assetVault;
+
+    /// @dev tracks how many shares each pair+token owns
     mapping(IAssetManagedPair => mapping(IERC20 => uint256)) public shares;
 
-    /// @dev for each aToken, tracks the total number of shares issued
-    mapping(IERC20 => uint256) public totalShares;
+    /// @dev for each ERC4626 vault, tracks the total number of shares
+    /// TODO: is this still necessary?
+    mapping(IEVault => uint256) public totalShares;
 
     /// @dev percentage of the pool's assets, above and below which
     /// the manager will divest the shortfall and invest the excess
@@ -40,32 +39,16 @@ contract AaveManager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     uint128 public upperThreshold = 0.7e18; // 70%
     uint128 public lowerThreshold = 0.3e18; // 30%
 
-    /// @dev this contract itself is immutable and is the source of truth for all relevant addresses for aave
-    IPoolAddressesProvider public immutable addressesProvider;
-
-    /// @dev we interact with this address for deposits and withdrawals
-    IPool public pool;
-
-    /// @dev this address is not permanent, aave can change this address to upgrade to a new impl
-    IAaveProtocolDataProvider public dataProvider;
-
     /// @dev trusted party to adjust asset management parameters such as thresholds and windDownMode and
     /// to claim and sell additional rewards (through a DEX/aggregator) into the corresponding
     /// Aave Token on behalf of the asset manager and then transfers the Aave Tokens back into the manager
     address public guardian;
 
-    /// @dev contract that manages additional rewards on top of interest bearing aave tokens
-    /// also known as the incentives contract
-    IRewardsController public rewardsController;
-
     /// @dev when set to true by the owner or guardian, it will only allow divesting but not investing by
     /// the pairs in this mode to facilitate replacement of asset managers to newer versions
     bool public windDownMode;
 
-    constructor(IPoolAddressesProvider aPoolAddressesProvider) {
-        addressesProvider = aPoolAddressesProvider;
-        updatePoolAddress();
-        updateDataProviderAddress();
+    constructor() {
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -81,24 +64,8 @@ contract AaveManager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
                                     ADMIN ACTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
-    function updatePoolAddress() public onlyOwner {
-        address lNewPool = addressesProvider.getPool();
-        require(lNewPool != address(0), "AM: POOL_ADDRESS_ZERO");
-        pool = IPool(lNewPool);
-        emit Pool(IPool(lNewPool));
-    }
-
-    function updateDataProviderAddress() public onlyOwner {
-        address lNewDataProvider = addressesProvider.getPoolDataProvider();
-        require(lNewDataProvider != address(0), "AM: DATA_PROVIDER_ADDRESS_ZERO");
-        dataProvider = IAaveProtocolDataProvider(lNewDataProvider);
-        emit DataProvider(IAaveProtocolDataProvider(lNewDataProvider));
-    }
-
-    function setRewardsController(address aRewardsController) external onlyOwner {
-        require(aRewardsController != address(0), "AM: REWARDS_CONTROLLER_ZERO");
-        rewardsController = IRewardsController(aRewardsController);
-        emit RewardsController(IRewardsController(aRewardsController));
+    function setVaultForAsset(IERC20 aAsset, IEVault aVault) external onlyOwner {
+        assetVault[aAsset] = aVault;
     }
 
     function setGuardian(address aGuardian) external onlyOwner {
@@ -128,36 +95,26 @@ contract AaveManager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
                                 HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
-    function _increaseShares(IAssetManagedPair aPair, IERC20 aToken, IERC20 aAaveToken, uint256 aAmount)
+    function _increaseShares(IAssetManagedPair aPair, IERC20 aToken, IEVault aVault, uint256 aAmount)
         private
         returns (uint256 rShares)
     {
-        uint256 lTotalShares = totalShares[aAaveToken];
-        if (totalShares[aAaveToken] == 0) {
-            rShares = aAmount;
-        } else {
-            rShares = aAmount * lTotalShares / aAaveToken.balanceOf(address(this));
-        }
+        // expected shares to receive given aAmount
+        rShares = aVault.previewDeposit(aAmount);
+
         shares[aPair][aToken] += rShares;
-        totalShares[aAaveToken] += rShares;
+        totalShares[aVault] += rShares;
     }
 
-    function _decreaseShares(IAssetManagedPair aPair, IERC20 aToken, IERC20 aAaveToken, uint256 aAmount)
+    function _decreaseShares(IAssetManagedPair aPair, IERC20 aToken, IEVault aVault, uint256 aAmount)
         private
         returns (uint256 rShares)
     {
-        rShares = aAmount.mulDivUp(totalShares[aAaveToken], aAaveToken.balanceOf(address(this)));
+        // TODO: might need to update this calculation
+        rShares = aAmount.mulDivUp(totalShares[aVault], aVault.balanceOf(address(this)));
 
         shares[aPair][aToken] -= rShares;
-        totalShares[aAaveToken] -= rShares;
-    }
-
-    /// @notice returns the address of the AAVE token.
-    /// If an AAVE token doesn't exist for the asset, returns address 0
-    function _getATokenAddress(IERC20 aToken) private view returns (IERC20) {
-        (address lATokenAddress,,) = dataProvider.getReserveTokensAddresses(address(aToken));
-
-        return IERC20(lATokenAddress);
+        totalShares[aVault] -= rShares;
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -170,13 +127,10 @@ contract AaveManager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     }
 
     function _getBalance(IAssetManagedPair aOwner, IERC20 aToken) private view returns (uint256 rTokenBalance) {
-        IERC20 lAaveToken = _getATokenAddress(aToken);
-        uint256 lTotalShares = totalShares[lAaveToken];
-        if (lTotalShares == 0) {
-            return 0;
-        }
+        IEVault lVault = assetVault[aToken];
+        uint256 lShares = shares[aOwner][aToken];
 
-        rTokenBalance = shares[aOwner][aToken] * lAaveToken.balanceOf(address(this)) / lTotalShares;
+        rTokenBalance = lVault.convertToAssets(lShares);
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -198,14 +152,15 @@ contract AaveManager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         IERC20 lToken0 = aPair.token0();
         IERC20 lToken1 = aPair.token1();
 
-        IERC20 lToken0AToken = _getATokenAddress(lToken0);
-        IERC20 lToken1AToken = _getATokenAddress(lToken1);
+        IEVault lToken0Vault = assetVault[lToken0];
+        IEVault lToken1Vault = assetVault[lToken1];
 
         // do not do anything if there isn't a market for the token
-        if (address(lToken0AToken) == address(0)) {
+        // TODO: what if there is still remaining outstanding balance, but the mapping is set to 0?
+        if (address(lToken0Vault) == address(0)) {
             aAmount0Change = 0;
         }
-        if (address(lToken1AToken) == address(0)) {
+        if (address(lToken1Vault) == address(0)) {
             aAmount1Change = 0;
         }
 
@@ -224,14 +179,14 @@ contract AaveManager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
             unchecked {
                 lAmount0Change = uint256(-aAmount0Change);
             }
-            _doDivest(aPair, lToken0, lToken0AToken, lAmount0Change);
+            _doDivest(aPair, lToken0, lToken0Vault, lAmount0Change);
         }
         if (aAmount1Change < 0) {
             uint256 lAmount1Change;
             unchecked {
                 lAmount1Change = uint256(-aAmount1Change);
             }
-            _doDivest(aPair, lToken1, lToken1AToken, lAmount1Change);
+            _doDivest(aPair, lToken1, lToken1Vault, lAmount1Change);
         }
 
         // transfer tokens to/from the pair
@@ -239,27 +194,33 @@ contract AaveManager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
 
         // transfer the managed tokens to the destination
         if (aAmount0Change > 0) {
-            _doInvest(aPair, lToken0, lToken0AToken, uint256(aAmount0Change));
+            _doInvest(aPair, lToken0, lToken0Vault, uint256(aAmount0Change));
         }
         if (aAmount1Change > 0) {
-            _doInvest(aPair, lToken1, lToken1AToken, uint256(aAmount1Change));
+            _doInvest(aPair, lToken1, lToken1Vault, uint256(aAmount1Change));
         }
     }
 
-    function _doDivest(IAssetManagedPair aPair, IERC20 aToken, IERC20 aAaveToken, uint256 aAmount) private {
-        uint256 lShares = _decreaseShares(aPair, aToken, aAaveToken, aAmount);
-        pool.withdraw(address(aToken), aAmount, address(this));
+    function _doDivest(IAssetManagedPair aPair, IERC20 aToken, IEVault aVault, uint256 aAmount) private {
+        uint256 lShares = _decreaseShares(aPair, aToken, aVault, aAmount);
+        uint256 lSharesBurned = aVault.withdraw(aAmount, address(this), address(this));
+
+        require(lShares == lSharesBurned, "divest Shares mismatch");
+
         emit Divestment(aPair, aToken, lShares);
         SafeTransferLib.safeApprove(address(aToken), address(aPair), aAmount);
     }
 
-    function _doInvest(IAssetManagedPair aPair, IERC20 aToken, IERC20 aAaveToken, uint256 aAmount) private {
+    function _doInvest(IAssetManagedPair aPair, IERC20 aToken, IEVault aVault, uint256 aAmount) private {
         require(aToken.balanceOf(address(this)) == aAmount, "AM: TOKEN_AMOUNT_MISMATCH");
-        uint256 lShares = _increaseShares(aPair, aToken, aAaveToken, aAmount);
-        SafeTransferLib.safeApprove(address(aToken), address(pool), aAmount);
+        uint256 lExpectedShares = _increaseShares(aPair, aToken, aVault, aAmount);
+        SafeTransferLib.safeApprove(address(aToken), address(aVault), aAmount);
 
-        pool.supply(address(aToken), aAmount, address(this), 0);
-        emit Investment(aPair, aToken, lShares);
+        uint256 lSharesReceived = aVault.deposit(aAmount, address(this));
+
+        require(lExpectedShares == lSharesReceived, "invest shares mismatch");
+
+        emit Investment(aPair, aToken, lSharesReceived);
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -304,18 +265,4 @@ contract AaveManager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////////////////
                                 ADDITIONAL REWARDS
     //////////////////////////////////////////////////////////////////////////*/
-
-    function claimRewardForMarket(address aMarket, address aReward)
-        external
-        onlyGuardianOrOwner
-        returns (uint256 rClaimed)
-    {
-        require(aReward != address(0), "AM: REWARD_TOKEN_ZERO");
-        require(aMarket != address(0), "AM: MARKET_ZERO");
-
-        address[] memory lMarkets = new address[](1);
-        lMarkets[0] = aMarket;
-
-        rClaimed = rewardsController.claimRewards(lMarkets, type(uint256).max, msg.sender, aReward);
-    }
 }
