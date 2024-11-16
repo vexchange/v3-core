@@ -261,9 +261,12 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(_pair.token0Managed(), uint256(lAmountToManage0));
         assertEq(_pair.token1Managed(), uint256(lAmountToManage1));
         assertEq(USDC.balanceOf(address(_pair)), MINT_AMOUNT - uint256(lAmountToManage));
-        assertEq(USDCVault.balanceOf(address(_manager)), uint256(lAmountToManage));
-        assertEq(_manager.shares(_pair, USDC), uint256(lAmountToManage));
-        assertEq(_manager.totalShares(USDCVault), uint256(lAmountToManage));
+
+        uint256 lExpectedShares = USDCVault.convertToShares(uint256(lAmountToManage));
+
+        assertEq(USDCVault.balanceOf(address(_manager)), lExpectedShares);
+        assertEq(_manager.shares(_pair, USDC), lExpectedShares);
+        assertEq(_manager.totalShares(USDCVault), lExpectedShares);
     }
 
     //    function testAdjustManagement_IncreaseManagementOneToken_Frozen() public allNetworks allPairs {
