@@ -1,5 +1,6 @@
 [profile.default]
 solc = "0.8.23"
+evm_version = "cancun"
 #via_ir = true
 bytecode_hash = "ipfs"
 optimizer_runs = 1_000_000
