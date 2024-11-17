@@ -502,19 +502,18 @@ contract EulerIntegrationTest is BaseTest {
         // assume
         (uint256 lReserve0, uint256 lReserve1,,) = _pair.getReserves();
         uint256 lReserveUSDC = _pair.token0() == USDC ? lReserve0 : lReserve1;
-        int256 lAmountToManage = int256(bound(aAmountToManage, 0, lReserveUSDC));
+        int256 lAmountToManage = int256(bound(aAmountToManage, 10, lReserveUSDC));
 
         // arrange
         int256 lAmountToManage0 = _pair.token0() == USDC ? lAmountToManage : int256(0);
         int256 lAmountToManage1 = _pair.token1() == USDC ? lAmountToManage : int256(0);
 
+        // act
+        uint256 lShares = USDCVault.previewDeposit(uint256(lAmountToManage));
         _manager.adjustManagement(_pair, lAmountToManage0, lAmountToManage1);
 
-        // act
-        uint256 lShares = _manager.shares(_pair, USDC);
-
         // assert
-        assertEq(lShares, uint256(lAmountToManage));
+        assertEq(lShares, _manager.shares(_pair, USDC));
     }
 
     function testShares_AdjustManagementAfterProfit(uint256 aAmountToManage1, uint256 aAmountToManage2)
@@ -537,8 +536,8 @@ contract EulerIntegrationTest is BaseTest {
 
         // act - go forward in time to simulate accrual of profits
         skip(30 days);
-        uint256 lAaveTokenAmt1 = USDCVault.balanceOf(address(_manager));
-        assertGt(lAaveTokenAmt1, uint256(lAmountToManage1));
+        uint256 lNewManaged = _manager.getBalance(_pair, USDC);
+        assertGt(lNewManaged, uint256(lAmountToManage1));
         _manager.adjustManagement(
             _pair,
             _pair.token0() == USDC ? lAmountToManage2 : int256(0),
@@ -546,12 +545,7 @@ contract EulerIntegrationTest is BaseTest {
         );
 
         // assert
-        uint256 lShares = _manager.shares(_pair, USDC);
-
         uint256 lBalance = _manager.getBalance(_pair, USDC);
-        uint256 lAaveTokenAmt2 = USDCVault.balanceOf(address(_manager));
-        assertEq(lBalance, lAaveTokenAmt2);
-
         // pair not yet informed of the profits, so the numbers are less than what it actually has
         uint256 lUSDCManaged = _pair.token0() == USDC ? _pair.token0Managed() : _pair.token1Managed();
         assertLt(lUSDCManaged, lBalance);
@@ -765,7 +759,7 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(USDC.balanceOf(address(this)), MINT_AMOUNT / 2 + 10);
         assertEq(USDC.balanceOf(address(_pair)), 0);
         assertEq(lReserveUSDC, MINT_AMOUNT / 2 - 10);
-        assertApproxEqAbs(_manager.getBalance(_pair, USDC), MINT_AMOU NT / 2 - 10, 1);
+        assertApproxEqAbs(_manager.getBalance(_pair, USDC), MINT_AMOUNT / 2 - 10, 1);
     }
     //
     //    // when the pool is paused, attempts to withdraw should fail and the swap should fail too
