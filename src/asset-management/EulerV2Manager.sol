@@ -18,6 +18,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
 
     event Guardian(address newGuardian);
     event WindDownMode(bool windDown);
+    event VaultForAsset(IERC20 asset, IEVault vault);
     event Thresholds(uint128 newLowerThreshold, uint128 newUpperThreshold);
     event Investment(IAssetManagedPair pair, IERC20 token, uint256 shares);
     event Divestment(IAssetManagedPair pair, IERC20 token, uint256 shares);
@@ -28,10 +29,6 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
 
     /// @dev tracks how many shares each pair+token owns
     mapping(IAssetManagedPair => mapping(IERC20 => uint256)) public shares;
-
-    /// @dev for each ERC4626 vault, tracks the total number of shares
-    /// TODO: is this still necessary?
-    mapping(IEVault => uint256) public totalShares;
 
     /// @dev percentage of the pool's assets, above and below which
     /// the manager will divest the shortfall and invest the excess
@@ -65,7 +62,10 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     //////////////////////////////////////////////////////////////////////////*/
 
     function setVaultForAsset(IERC20 aAsset, IEVault aVault) external onlyOwner {
+        // what happens if there was already a vault set?
+
         assetVault[aAsset] = aVault;
+        emit VaultForAsset(aAsset, aVault);
     }
 
     function setGuardian(address aGuardian) external onlyOwner {
@@ -103,18 +103,14 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         rShares = aVault.previewDeposit(aAmount);
 
         shares[aPair][aToken] += rShares;
-        totalShares[aVault] += rShares;
     }
 
     function _decreaseShares(IAssetManagedPair aPair, IERC20 aToken, IEVault aVault, uint256 aAmount)
         private
         returns (uint256 rShares)
     {
-        // TODO: might need to update this calculation
-        rShares = aAmount.mulDivUp(totalShares[aVault], aVault.balanceOf(address(this)));
-
+        rShares = aVault.previewWithdraw(aAmount);
         shares[aPair][aToken] -= rShares;
-        totalShares[aVault] -= rShares;
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -128,9 +124,12 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
 
     function _getBalance(IAssetManagedPair aOwner, IERC20 aToken) private view returns (uint256 rTokenBalance) {
         IEVault lVault = assetVault[aToken];
-        uint256 lShares = shares[aOwner][aToken];
 
-        rTokenBalance = lVault.convertToAssets(lShares);
+        // TODO: what happens if something was assigned, and then deassigned?
+        if (address(lVault) != address(0)) {
+            uint256 lShares = shares[aOwner][aToken];
+            rTokenBalance = lVault.convertToAssets(lShares);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -205,6 +204,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         uint256 lShares = _decreaseShares(aPair, aToken, aVault, aAmount);
         uint256 lSharesBurned = aVault.withdraw(aAmount, address(this), address(this));
 
+        // N.B: sometimes lShares and lSharesBurned can be off by 1, even if aAmount is the exact same
         require(lShares == lSharesBurned, "divest Shares mismatch");
 
         emit Divestment(aPair, aToken, lShares);

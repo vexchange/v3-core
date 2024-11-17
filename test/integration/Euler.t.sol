@@ -142,7 +142,7 @@ contract EulerIntegrationTest is BaseTest {
     function setUp() external {
         _networks.push(
             Network(
-                getChain("mainnet").rpcUrl,
+                "http://127.0.0.1:8545",
                 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
                 0xE982615d461DD5cD06575BbeA87624fda4e3de17,
                 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9 // Euler Prime USDC vault
@@ -242,8 +242,7 @@ contract EulerIntegrationTest is BaseTest {
 
         // act
         vm.expectCall(
-            address(_pair),
-            abi.encodeCall(ReservoirPair.adjustManagement, (lAmountToManage0, lAmountToManage1))
+            address(_pair), abi.encodeCall(ReservoirPair.adjustManagement, (lAmountToManage0, lAmountToManage1))
         );
         _manager.adjustManagement(_pair, lAmountToManage0, lAmountToManage1);
     }
@@ -266,7 +265,6 @@ contract EulerIntegrationTest is BaseTest {
 
         assertEq(USDCVault.balanceOf(address(_manager)), lExpectedShares);
         assertEq(_manager.shares(_pair, USDC), lExpectedShares);
-        assertEq(_manager.totalShares(USDCVault), lExpectedShares);
     }
 
     //    function testAdjustManagement_IncreaseManagementOneToken_Frozen() public allNetworks allPairs {
@@ -289,7 +287,6 @@ contract EulerIntegrationTest is BaseTest {
     //        assertEq(USDC.balanceOf(address(_pair)), MINT_AMOUNT);
     //        assertEq(lAaveToken.balanceOf(address(_manager)), 0);
     //        assertEq(_manager.shares(_pair, USDC), 0);
-    //        assertEq(_manager.totalShares(lAaveToken), 0);
     //    }
 
     //    function testAdjustManagement_IncreaseManagementOneToken_Paused() public allNetworks allPairs {
@@ -312,26 +309,30 @@ contract EulerIntegrationTest is BaseTest {
     //        assertEq(USDC.balanceOf(address(_pair)), MINT_AMOUNT);
     //        assertEq(lAaveToken.balanceOf(address(_manager)), 0);
     //        assertEq(_manager.shares(_pair, USDC), 0);
-    //        assertEq(_manager.totalShares(lAaveToken), 0);
     //    }
 
     function testAdjustManagement_DecreaseManagementOneToken() public allNetworks allPairs {
         // arrange
-        int256 lAmountToManage = -500e6;
+        int256 lAmountToManage = 500e6;
         int256 lAmountToManage0 = _pair.token0() == USDC ? lAmountToManage : int256(0);
         int256 lAmountToManage1 = _pair.token1() == USDC ? lAmountToManage : int256(0);
-        _increaseManagementOneToken(500e6);
+        _increaseManagementOneToken(lAmountToManage);
+        uint256 lBalance = _manager.getBalance(_pair, USDC);
 
         // act
-        _manager.adjustManagement(_pair, lAmountToManage0, lAmountToManage1);
+        _manager.adjustManagement(
+            _pair,
+            lAmountToManage0 == 0 ? lAmountToManage0 : -int256(lBalance),
+            lAmountToManage1 == 0 ? lAmountToManage1 : -int256(lBalance)
+        );
 
         // assert
+        _pair.sync();
         assertEq(_pair.token0Managed(), 0);
         assertEq(_pair.token1Managed(), 0);
-        assertEq(USDC.balanceOf(address(_pair)), MINT_AMOUNT);
+        assertApproxEqAbs(USDC.balanceOf(address(_pair)), MINT_AMOUNT, 1);
         assertEq(USDCVault.balanceOf(address(_manager)), 0);
         assertEq(_manager.shares(_pair, USDC), 0);
-        assertEq(_manager.totalShares(USDCVault), 0);
     }
 
     function testAdjustManagement_DecreaseManagementBeyondShare() public allNetworks allPairs {
@@ -350,7 +351,7 @@ contract EulerIntegrationTest is BaseTest {
         vm.expectRevert(stdError.arithmeticError);
         _manager.adjustManagement(lOtherPair, -lAmountToManage - 1, 0);
     }
-    //
+
     //    function testAdjustManagement_DecreaseManagement_ReservePaused() public allNetworks allPairs {
     //        // arrange
     //        int256 lAmountToManage = -500e6;
@@ -371,7 +372,6 @@ contract EulerIntegrationTest is BaseTest {
     //        assertEq(USDC.balanceOf(address(_pair)), MINT_AMOUNT - 500e6);
     //        assertEq(USDCVault.balanceOf(address(_manager)), 500e6);
     //        assertEq(_manager.shares(_pair, USDC), 500e6);
-    //        assertEq(_manager.totalShares(USDCVault), 500e6);
     //    }
 
     //    function testAdjustManagement_DecreaseManagement_SucceedEvenWhenFrozen() public allNetworks allPairs {
@@ -396,7 +396,6 @@ contract EulerIntegrationTest is BaseTest {
     //        assertEq(USDC.balanceOf(address(_pair)), MINT_AMOUNT);
     //        assertEq(lAaveToken.balanceOf(address(_manager)), 0);
     //        assertEq(_manager.shares(_pair, USDC), 0);
-    //        assertEq(_manager.totalShares(lAaveToken), 0);
     //    }
 
     function testAdjustManagement_WindDown() external allNetworks allPairs {
@@ -411,7 +410,7 @@ contract EulerIntegrationTest is BaseTest {
         );
 
         // assert
-        assertEq(_manager.getBalance(_pair, USDC), 300e6);
+        assertApproxEqAbs(_manager.getBalance(_pair, USDC), 300e6, 1);
     }
 
     function testGetBalance(uint256 aAmountToManage) public allNetworks allPairs {
@@ -514,10 +513,8 @@ contract EulerIntegrationTest is BaseTest {
 
         // act
         uint256 lShares = _manager.shares(_pair, USDC);
-        uint256 lTotalShares = _manager.totalShares(USDCVault);
 
         // assert
-        assertEq(lShares, lTotalShares);
         assertEq(lShares, uint256(lAmountToManage));
     }
 
@@ -551,9 +548,6 @@ contract EulerIntegrationTest is BaseTest {
 
         // assert
         uint256 lShares = _manager.shares(_pair, USDC);
-        uint256 lTotalShares = _manager.totalShares(USDCVault);
-        assertEq(lShares, lTotalShares);
-        assertLt(lTotalShares, uint256(lAmountToManage1 + lAmountToManage2));
 
         uint256 lBalance = _manager.getBalance(_pair, USDC);
         uint256 lAaveTokenAmt2 = USDCVault.balanceOf(address(_manager));
@@ -738,7 +732,6 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(USDC.balanceOf(address(_pair)), 0);
         assertEq(lReserveUSDC, MINT_AMOUNT / 2 - 10);
         assertEq(_manager.shares(_pair, USDC), MINT_AMOUNT / 2 - 10);
-        assertEq(_manager.totalShares(USDCVault), MINT_AMOUNT / 2 - 10);
         assertApproxEqAbs(_manager.getBalance(_pair, USDC), MINT_AMOUNT / 2 - 10, 1);
     }
 
@@ -773,7 +766,6 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(USDC.balanceOf(address(_pair)), 0);
         assertEq(lReserveUSDC, MINT_AMOUNT / 2 - 10);
         assertEq(_manager.shares(_pair, USDC), MINT_AMOUNT / 2 - 10);
-        assertEq(_manager.totalShares(USDCVault), MINT_AMOUNT / 2 - 10);
         assertApproxEqAbs(_manager.getBalance(_pair, USDC), MINT_AMOUNT / 2 - 10, 1);
     }
     //
@@ -846,7 +838,6 @@ contract EulerIntegrationTest is BaseTest {
 
         // sanity
         assertEq(USDC.balanceOf(address(_pair)), MINT_AMOUNT / 2);
-        assertEq(_manager.totalShares(USDCVault), lReserveUSDC / 2);
 
         // act
         vm.startPrank(_alice);
@@ -887,7 +878,6 @@ contract EulerIntegrationTest is BaseTest {
     //        assertEq(lAaveToken.balanceOf(address(_manager)), lReserveUSDC / 2);
     //        assertEq(_manager.getBalance(_pair, USDC), lReserveUSDC / 2);
     //        assertEq(_manager.shares(_pair, USDC), lReserveUSDC / 2);
-    //        assertEq(_manager.totalShares(lAaveToken), lReserveUSDC / 2);
     //    }
 
     function testSetThresholds_BreachMaximum() public allNetworks {
@@ -1067,7 +1057,6 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(address(_pair.assetManager()), address(0));
         assertEq(address(lOtherPair.assetManager()), address(0));
         assertEq(address(lThirdPair.assetManager()), address(0));
-        assertEq(_manager.totalShares(USDCVault), 0);
         assertEq(_manager.shares(_pair, USDC), 0);
         assertEq(_manager.shares(lOtherPair, USDC), 0);
         assertEq(_manager.shares(lThirdPair, USDC), 0);
@@ -1150,7 +1139,6 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(address(_pair.assetManager()), address(0));
         assertEq(address(lPair2.assetManager()), address(0));
         assertEq(address(lPair3.assetManager()), address(0));
-        assertEq(_manager.totalShares(USDCVault), 0, "total shares");
         assertEq(_manager.shares(_pair, USDC), 0, "pair shares");
         assertEq(_manager.shares(lPair2, USDC), 0, "pair2 shares");
         assertEq(_manager.shares(lPair3, USDC), 0, "pair3 shares");
