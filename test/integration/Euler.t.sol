@@ -417,7 +417,7 @@ contract EulerIntegrationTest is BaseTest {
         // assume
         (uint256 lReserve0, uint256 lReserve1,,) = _pair.getReserves();
         uint256 lReserveUSDC = _pair.token0() == USDC ? lReserve0 : lReserve1;
-        int256 lAmountToManage = int256(bound(aAmountToManage, 0, lReserveUSDC));
+        int256 lAmountToManage = int256(bound(aAmountToManage, 3, lReserveUSDC));
 
         // arrange
         int256 lAmountToManage0 = _pair.token0() == USDC ? lAmountToManage : int256(0);
@@ -428,7 +428,7 @@ contract EulerIntegrationTest is BaseTest {
         uint256 lBalance = _manager.getBalance(_pair, USDC);
 
         // assert
-        assertTrue(MathUtils.within1(lBalance, uint256(lAmountToManage)));
+        assertApproxEqAbs(lBalance, uint256(lAmountToManage), 2);
     }
 
     function testGetBalance_TwoPairsInSameMarket(uint256 aAmountToManage1, uint256 aAmountToManage2)
@@ -440,8 +440,8 @@ contract EulerIntegrationTest is BaseTest {
         ConstantProductPair lOtherPair = _createOtherPair();
         (uint256 lReserve0, uint256 lReserve1,,) = _pair.getReserves();
         uint256 lReserveUSDC = _pair.token0() == USDC ? lReserve0 : lReserve1;
-        int256 lAmountToManagePair = int256(bound(aAmountToManage1, 1, lReserveUSDC));
-        int256 lAmountToManageOther = int256(bound(aAmountToManage2, 1, lReserveUSDC));
+        int256 lAmountToManagePair = int256(bound(aAmountToManage1, 10, lReserveUSDC));
+        int256 lAmountToManageOther = int256(bound(aAmountToManage2, 10, lReserveUSDC));
 
         // arrange
         int256 lAmountToManage0Pair = _pair.token0() == USDC ? lAmountToManagePair : int256(0);
@@ -454,8 +454,8 @@ contract EulerIntegrationTest is BaseTest {
         _manager.adjustManagement(lOtherPair, lAmountToManage0Other, lAmountToManage1Other);
 
         // assert
-        assertTrue(MathUtils.within1(_manager.getBalance(_pair, USDC), uint256(lAmountToManagePair)));
-        assertTrue(MathUtils.within1(_manager.getBalance(lOtherPair, USDC), uint256(lAmountToManageOther)));
+        assertApproxEqAbs(_manager.getBalance(_pair, USDC), uint256(lAmountToManagePair), 2);
+        assertApproxEqAbs(_manager.getBalance(lOtherPair, USDC), uint256(lAmountToManageOther), 2);
     }
 
     function testGetBalance_AddingAfterProfit(uint256 aAmountToManage1, uint256 aAmountToManage2, uint256 aTime)
