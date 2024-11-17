@@ -267,50 +267,6 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(_manager.shares(_pair, USDC), lExpectedShares);
     }
 
-    //    function testAdjustManagement_IncreaseManagementOneToken_Frozen() public allNetworks allPairs {
-    //        // arrange - freeze the USDC market
-    //        int256 lAmountToManage = 500e6;
-    //        vm.prank(_aaveAdmin);
-    //        _poolConfigurator.setReserveFreeze(address(USDC), true);
-    //        int256 lAmountToManage0 = _pair.token0() == USDC ? lAmountToManage : int256(0);
-    //        int256 lAmountToManage1 = _pair.token1() == USDC ? lAmountToManage : int256(0);
-    //
-    //        // act
-    //        vm.expectRevert(bytes(Errors.RESERVE_FROZEN));
-    //        _manager.adjustManagement(_pair, lAmountToManage0, lAmountToManage1);
-    //
-    //        // assert - nothing should have moved as USDC market is frozen
-    //
-    //        IERC20 lAaveToken = IERC20(lRawAaveToken);
-    //        assertEq(_pair.token0Managed(), 0);
-    //        assertEq(_pair.token1Managed(), 0);
-    //        assertEq(USDC.balanceOf(address(_pair)), MINT_AMOUNT);
-    //        assertEq(lAaveToken.balanceOf(address(_manager)), 0);
-    //        assertEq(_manager.shares(_pair, USDC), 0);
-    //    }
-
-    //    function testAdjustManagement_IncreaseManagementOneToken_Paused() public allNetworks allPairs {
-    //        // arrange - freeze the USDC market
-    //        int256 lAmountToManage = 500e6;
-    //        vm.prank(_aaveAdmin);
-    //        _poolConfigurator.setReservePause(address(USDC), true);
-    //        int256 lAmountToManage0 = _pair.token0() == USDC ? lAmountToManage : int256(0);
-    //        int256 lAmountToManage1 = _pair.token1() == USDC ? lAmountToManage : int256(0);
-    //
-    //        // act
-    //        vm.expectRevert(bytes(Errors.RESERVE_PAUSED));
-    //        _manager.adjustManagement(_pair, lAmountToManage0, lAmountToManage1);
-    //
-    //        // assert - nothing should have moved as USDC market is paused
-    //
-    //        IERC20 lAaveToken = IERC20(lRawAaveToken);
-    //        assertEq(_pair.token0Managed(), 0);
-    //        assertEq(_pair.token1Managed(), 0);
-    //        assertEq(USDC.balanceOf(address(_pair)), MINT_AMOUNT);
-    //        assertEq(lAaveToken.balanceOf(address(_manager)), 0);
-    //        assertEq(_manager.shares(_pair, USDC), 0);
-    //    }
-
     function testAdjustManagement_DecreaseManagementOneToken() public allNetworks allPairs {
         // arrange
         int256 lAmountToManage = 500e6;
@@ -351,52 +307,6 @@ contract EulerIntegrationTest is BaseTest {
         vm.expectRevert(stdError.arithmeticError);
         _manager.adjustManagement(lOtherPair, -lAmountToManage - 1, 0);
     }
-
-    //    function testAdjustManagement_DecreaseManagement_ReservePaused() public allNetworks allPairs {
-    //        // arrange
-    //        int256 lAmountToManage = -500e6;
-    //        int256 lAmountToManage0 = _pair.token0() == USDC ? lAmountToManage : int256(0);
-    //        int256 lAmountToManage1 = _pair.token1() == USDC ? lAmountToManage : int256(0);
-    //        _increaseManagementOneToken(500e6);
-    //
-    //        vm.prank(_aaveAdmin);
-    //        _poolConfigurator.setReservePause(address(USDC), true);
-    //
-    //        // act - withdraw should fail when reserve is paused
-    //        vm.expectRevert(bytes(Errors.RESERVE_PAUSED));
-    //        _manager.adjustManagement(_pair, -lAmountToManage0, -lAmountToManage1);
-    //
-    //        // assert
-    //        uint256 lUsdcManaged = _pair.token0() == USDC ? _pair.token0Managed() : _pair.token1Managed();
-    //        assertEq(lUsdcManaged, 500e6);
-    //        assertEq(USDC.balanceOf(address(_pair)), MINT_AMOUNT - 500e6);
-    //        assertEq(USDCVault.balanceOf(address(_manager)), 500e6);
-    //        assertEq(_manager.shares(_pair, USDC), 500e6);
-    //    }
-
-    //    function testAdjustManagement_DecreaseManagement_SucceedEvenWhenFrozen() public allNetworks allPairs {
-    //        // arrange
-    //        int256 lAmountToManage = -500e6;
-    //        int256 lAmountToManage0 = _pair.token0() == USDC ? lAmountToManage : int256(0);
-    //        int256 lAmountToManage1 = _pair.token1() == USDC ? lAmountToManage : int256(0);
-    //        _increaseManagementOneToken(500e6);
-    //
-    //        vm.prank(_aaveAdmin);
-    //        _poolConfigurator.setReserveFreeze(address(USDC), true);
-    //
-    //        // act - withdraw should still succeed when reserve is frozen
-    //        vm.expectCall(address(_pair), abi.encodeCall(_pair.adjustManagement, (lAmountToManage0, lAmountToManage1)));
-    //        _manager.adjustManagement(_pair, lAmountToManage0, lAmountToManage1);
-    //
-    //        // assert
-    //
-    //        IERC20 lAaveToken = IERC20(lRawAaveToken);
-    //        assertEq(_pair.token0Managed(), 0);
-    //        assertEq(_pair.token1Managed(), 0);
-    //        assertEq(USDC.balanceOf(address(_pair)), MINT_AMOUNT);
-    //        assertEq(lAaveToken.balanceOf(address(_manager)), 0);
-    //        assertEq(_manager.shares(_pair, USDC), 0);
-    //    }
 
     function testAdjustManagement_WindDown() external allNetworks allPairs {
         // arrange
@@ -761,32 +671,6 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(lReserveUSDC, MINT_AMOUNT / 2 - 10);
         assertApproxEqAbs(_manager.getBalance(_pair, USDC), MINT_AMOUNT / 2 - 10, 1);
     }
-    //
-    //    // when the pool is paused, attempts to withdraw should fail and the swap should fail too
-    //    function testSwap_ReturnAsset_PausedFail() public allNetworks allPairs {
-    //        // arrange
-    //        (uint256 lReserve0, uint256 lReserve1,,) = _pair.getReserves();
-    //        (uint256 lReserveUSDC, uint256 lReserveTokenA) =
-    //            _pair.token0() == USDC ? (lReserve0, lReserve1) : (lReserve1, lReserve0);
-    //        // manage half
-    //        _manager.adjustManagement(
-    //            _pair,
-    //            int256(_pair.token0() == USDC ? lReserveUSDC / 2 : 0),
-    //            int256(_pair.token1() == USDC ? lReserveUSDC / 2 : 0)
-    //        );
-    //        vm.prank(_aaveAdmin);
-    //        _poolConfigurator.setReservePause(address(USDC), true);
-    //
-    //        // act & assert
-    //        int256 lOutputAmt = _pair.token0() == USDC ? int256(MINT_AMOUNT / 2 + 10) : -int256(MINT_AMOUNT / 2 + 10);
-    //        _tokenA.mint(address(_pair), lReserveTokenA * 2);
-    //        vm.expectRevert(bytes(Errors.RESERVE_PAUSED));
-    //        _pair.swap(lOutputAmt, false, address(this), bytes(""));
-    //
-    //        // assert
-    //        assertEq(_manager.shares(_pair, USDC), MINT_AMOUNT / 2);
-    //        assertEq(_manager.getBalance(_pair, USDC), MINT_AMOUNT / 2);
-    //    }
 
     // the amount requested is within the balance of the pair, no need to return asset
     function testSwap_NoReturnAsset() public allNetworks allPairs {
@@ -843,35 +727,6 @@ contract EulerIntegrationTest is BaseTest {
         // assert - range due to slight diff in liq between CP and SP
         assertApproxEqRel(USDC.balanceOf(address(this)), MINT_AMOUNT, 0.000000001001e18);
     }
-
-    //    function testBurn_ReturnAsset_PausedFail() public allNetworks allPairs {
-    //        // arrange
-    //        (uint256 lReserve0, uint256 lReserve1,,) = _pair.getReserves();
-    //        uint256 lReserveUSDC = _pair.token0() == USDC ? lReserve0 : lReserve1;
-    //        // manage half
-    //        _manager.adjustManagement(
-    //            _pair,
-    //            int256(_pair.token0() == USDC ? lReserveUSDC / 2 : 0),
-    //            int256(_pair.token1() == USDC ? lReserveUSDC / 2 : 0)
-    //        );
-    //        vm.prank(_aaveAdmin);
-    //        _poolConfigurator.setReservePause(address(USDC), true);
-    //
-    //        // act & assert
-    //        vm.startPrank(_alice);
-    //        _pair.transfer(address(_pair), _pair.balanceOf(_alice));
-    //        vm.expectRevert(bytes(Errors.RESERVE_PAUSED));
-    //        _pair.burn(address(this));
-    //        vm.stopPrank();
-    //
-    //        // assert
-    //
-    //        IERC20 lAaveToken = IERC20(lRawAaveToken);
-    //        assertEq(USDC.balanceOf(address(_pair)), lReserveUSDC / 2);
-    //        assertEq(lAaveToken.balanceOf(address(_manager)), lReserveUSDC / 2);
-    //        assertEq(_manager.getBalance(_pair, USDC), lReserveUSDC / 2);
-    //        assertEq(_manager.shares(_pair, USDC), lReserveUSDC / 2);
-    //    }
 
     function testSetThresholds_BreachMaximum() public allNetworks {
         // act & assert
