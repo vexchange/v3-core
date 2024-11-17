@@ -10,7 +10,7 @@ import { Address } from "@openzeppelin/utils/Address.sol";
 
 import { IAssetManagedPair } from "src/interfaces/IAssetManagedPair.sol";
 import { IAssetManager, IERC20 } from "src/interfaces/IAssetManager.sol";
-import { IEVault } from "src/interfaces/euler/IEvault.sol";
+import { IERC4626 } from "lib/forge-std/src/interfaces/IERC4626.sol";
 
 contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     using FixedPointMathLib for uint256;
@@ -18,14 +18,16 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
 
     event Guardian(address newGuardian);
     event WindDownMode(bool windDown);
-    event VaultForAsset(IERC20 asset, IEVault vault);
+    event VaultForAsset(IERC20 asset, IERC4626 vault);
     event Thresholds(uint128 newLowerThreshold, uint128 newUpperThreshold);
     event Investment(IAssetManagedPair pair, IERC20 token, uint256 shares);
     event Divestment(IAssetManagedPair pair, IERC20 token, uint256 shares);
 
-    /// @dev Mapping from ERC20 asset to an Euler vault.
-    /// This implies that for a given asset, there can only be one vault
-    mapping(IERC20 => IEVault) public assetVault;
+    /// @dev Mapping from an ERC20 token to an Euler V2 vault.
+    /// This implies that for a given asset, there can only be one vault.
+    /// If the admin of the manager wishes to specify a different vault for an asset, they would have to manually ensure that all pairs have
+    /// divested, otherwise the pairs might not be able to retrieve their assets.
+    mapping(IERC20 => IERC4626) public assetVault;
 
     /// @dev tracks how many shares each pair+token owns
     mapping(IAssetManagedPair => mapping(IERC20 => uint256)) public shares;
@@ -45,8 +47,8 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     /// the pairs in this mode to facilitate replacement of asset managers to newer versions
     bool public windDownMode;
 
-    constructor() {
-    }
+    // solhint-disable-next-line no-empty-blocks
+    constructor() { }
 
     /*//////////////////////////////////////////////////////////////////////////
                                     MODIFIERS
@@ -61,7 +63,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
                                     ADMIN ACTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
-    function setVaultForAsset(IERC20 aAsset, IEVault aVault) external onlyOwner {
+    function setVaultForAsset(IERC20 aAsset, IERC4626 aVault) external onlyOwner {
         // what happens if there was already a vault set?
 
         assetVault[aAsset] = aVault;
@@ -95,7 +97,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
                                 HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
-    function _increaseShares(IAssetManagedPair aPair, IERC20 aToken, IEVault aVault, uint256 aAmount)
+    function _increaseShares(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aAmount)
         private
         returns (uint256 rShares)
     {
@@ -105,7 +107,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         shares[aPair][aToken] += rShares;
     }
 
-    function _decreaseShares(IAssetManagedPair aPair, IERC20 aToken, IEVault aVault, uint256 aAmount)
+    function _decreaseShares(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aAmount)
         private
         returns (uint256 rShares)
     {
@@ -123,7 +125,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     }
 
     function _getBalance(IAssetManagedPair aOwner, IERC20 aToken) private view returns (uint256 rTokenBalance) {
-        IEVault lVault = assetVault[aToken];
+        IERC4626 lVault = assetVault[aToken];
 
         // TODO: what happens if something was assigned, and then deassigned?
         if (address(lVault) != address(0)) {
@@ -151,8 +153,8 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         IERC20 lToken0 = aPair.token0();
         IERC20 lToken1 = aPair.token1();
 
-        IEVault lToken0Vault = assetVault[lToken0];
-        IEVault lToken1Vault = assetVault[lToken1];
+        IERC4626 lToken0Vault = assetVault[lToken0];
+        IERC4626 lToken1Vault = assetVault[lToken1];
 
         // do not do anything if there isn't a market for the token
         // TODO: what if there is still remaining outstanding balance, but the mapping is set to 0?
@@ -200,25 +202,24 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         }
     }
 
-    function _doDivest(IAssetManagedPair aPair, IERC20 aToken, IEVault aVault, uint256 aAmount) private {
+    function _doDivest(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aAmount) private {
         uint256 lShares = _decreaseShares(aPair, aToken, aVault, aAmount);
         uint256 lSharesBurned = aVault.withdraw(aAmount, address(this), address(this));
 
-        // N.B: sometimes lShares and lSharesBurned can be off by 1, even if aAmount is the exact same
-        require(lShares == lSharesBurned, "divest Shares mismatch");
+        require(lShares == lSharesBurned, "AM: DIVEST_SHARES_MISMATCH");
 
         emit Divestment(aPair, aToken, lShares);
         SafeTransferLib.safeApprove(address(aToken), address(aPair), aAmount);
     }
 
-    function _doInvest(IAssetManagedPair aPair, IERC20 aToken, IEVault aVault, uint256 aAmount) private {
+    function _doInvest(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aAmount) private {
         require(aToken.balanceOf(address(this)) == aAmount, "AM: TOKEN_AMOUNT_MISMATCH");
         uint256 lExpectedShares = _increaseShares(aPair, aToken, aVault, aAmount);
         SafeTransferLib.safeApprove(address(aToken), address(aVault), aAmount);
 
         uint256 lSharesReceived = aVault.deposit(aAmount, address(this));
 
-        require(lExpectedShares == lSharesReceived, "invest shares mismatch");
+        require(lExpectedShares == lSharesReceived, "AM: INVEST_SHARES_MISMATCH");
 
         emit Investment(aPair, aToken, lSharesReceived);
     }

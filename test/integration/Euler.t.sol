@@ -13,7 +13,7 @@ import { IRewardsController } from "src/interfaces/aave/IRewardsController.sol";
 
 import { FactoryStoreLib } from "src/libraries/FactoryStore.sol";
 import { MathUtils } from "src/libraries/MathUtils.sol";
-import { EulerV2Manager, IAssetManager, IEVault } from "src/asset-management/EulerV2Manager.sol";
+import { EulerV2Manager, IAssetManager, IERC4626 } from "src/asset-management/EulerV2Manager.sol";
 import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
 import { IUSDC } from "test/interfaces/IUSDC.sol";
 import { ReturnAssetExploit } from "../__mocks/ReturnAssetExploit.sol";
@@ -53,7 +53,7 @@ contract EulerIntegrationTest is BaseTest {
     // network specific variables
     IERC20 private USDC;
     address private masterMinterUSDC;
-    IEVault private USDCVault;
+    IERC4626 private USDCVault;
     address private _aaveAdmin;
 
     modifier allPairs() {
@@ -94,7 +94,7 @@ contract EulerIntegrationTest is BaseTest {
         _manager = new EulerV2Manager();
         USDC = IERC20(aNetwork.USDC);
         masterMinterUSDC = aNetwork.masterMinterUSDC;
-        USDCVault = IEVault(aNetwork.USDCVault);
+        USDCVault = IERC4626(aNetwork.USDCVault);
 
         _deal(address(USDC), address(this), MINT_AMOUNT);
         _constantProductPair = ConstantProductPair(_createPair(address(_tokenA), address(USDC), 0));
