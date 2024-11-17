@@ -478,10 +478,12 @@ contract EulerIntegrationTest is BaseTest {
             _pair.token0() == USDC ? lAmountToManagePair : int256(0),
             _pair.token1() == USDC ? lAmountToManagePair : int256(0)
         );
+        uint256 lPairShares = _manager.shares(_pair, USDC);
 
         // act
         skip(lTime);
-        uint256 lAaveTokenAmt2 = USDCVault.balanceOf(address(_manager));
+        uint256 lBalanceAfterInterest = _manager.getBalance(_pair, USDC);
+        uint256 lExpectedShares = USDCVault.previewDeposit(uint256(lAmountToManageOther));
         _manager.adjustManagement(
             lOtherPair,
             lOtherPair.token0() == USDC ? lAmountToManageOther : int256(0),
@@ -489,11 +491,8 @@ contract EulerIntegrationTest is BaseTest {
         );
 
         // assert
-        assertEq(_manager.shares(_pair, USDC), uint256(lAmountToManagePair));
-        assertApproxEqAbs(_manager.getBalance(_pair, USDC), lAaveTokenAmt2, 2);
-
-        uint256 lExpectedShares =
-            uint256(lAmountToManageOther) * 1e18 / (lAaveTokenAmt2 * 1e18 / uint256(lAmountToManagePair));
+        assertEq(_manager.shares(_pair, USDC), lPairShares); // ensure that _pair's shares did not change
+        assertApproxEqAbs(_manager.getBalance(_pair, USDC), lBalanceAfterInterest, 2);
         assertEq(_manager.shares(lOtherPair, USDC), lExpectedShares);
         uint256 lBalance = _manager.getBalance(lOtherPair, USDC);
         assertApproxEqAbs(lBalance, uint256(lAmountToManageOther), 2);
