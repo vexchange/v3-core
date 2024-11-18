@@ -51,7 +51,9 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
             updateSwapFee();
             updatePlatformFee();
             updateOracleCaller();
-            setClampParams(factory.read(MAX_CHANGE_RATE_NAME).toUint128(), factory.read(MAX_CHANGE_PER_TRADE_NAME).toUint128());
+            setClampParams(
+                factory.read(MAX_CHANGE_RATE_NAME).toUint128(), factory.read(MAX_CHANGE_PER_TRADE_NAME).toUint128()
+            );
         }
     }
 
@@ -518,7 +520,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
     event OracleCallerUpdated(address oldCaller, address newCaller);
     event ClampParamsUpdated(uint128 newMaxChangeRatePerSecond, uint128 newMaxChangePerTrade);
 
-    // 100 basis points per second which is 60% per minute
+    // 1% per second which is 60% per minute
     uint256 internal constant MAX_CHANGE_PER_SEC = 0.01e18;
     // 10%
     uint256 internal constant MAX_CHANGE_PER_TRADE = 0.1e18;
@@ -567,13 +569,11 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
     ) internal virtual returns (uint256 rClampedPrice, int256 rClampedLogPrice) {
         // call to `percentDelta` will revert if the difference between aCurrRawPrice and aPrevClampedPrice is
         // greater than uint196 (1e59). It is extremely unlikely that one trade can change the price by 1e59
+        bool lRateOfChangeWithinThreshold =
+            aCurrRawPrice.percentDelta(aPrevClampedPrice) <= maxChangeRate * aTimeElapsed;
+        bool lPerTradeWithinThreshold = aCurrRawPrice.percentDelta(aPrevClampedPrice) <= maxChangePerTrade;
         if (
-            (
-                aCurrRawPrice.percentDelta(aPrevClampedPrice) <= maxChangeRate * aTimeElapsed
-                    && aCurrRawPrice.percentDelta(aPrevClampedPrice) <= maxChangePerTrade
-            )
-            // this is the first ever calculation of clamped price, and so should be set to the raw price
-            || aPreviousTimestamp == 0
+            (lRateOfChangeWithinThreshold && lPerTradeWithinThreshold) || aPreviousTimestamp == 0 // first ever calculation of the clamped price, and so should be set to the raw price
         ) {
             (rClampedPrice, rClampedLogPrice) = (aCurrRawPrice, aCurrLogRawPrice);
         } else {
