@@ -7,6 +7,7 @@ import { LogCompression } from "src/libraries/LogCompression.sol";
 import { FactoryStoreLib } from "src/libraries/FactoryStore.sol";
 import { ConstantProductOracleMath } from "src/libraries/ConstantProductOracleMath.sol";
 import { StableOracleMath } from "src/libraries/StableOracleMath.sol";
+import { Buffer } from "src/libraries/Buffer.sol";
 import { GenericFactory } from "src/GenericFactory.sol";
 import { Constants } from "src/Constants.sol";
 
@@ -193,7 +194,7 @@ contract OracleWriterTest is BaseTest {
         // sanity
         (,,, uint16 lIndex) = _pair.getReserves();
         Observation memory lObs = _oracleCaller.observation(_pair, lIndex);
-        assertEq(lIndex, type(uint16).max);
+        assertEq(lIndex, Buffer.SIZE - 1);
         assertEq(LogCompression.fromLowResLog(lObs.logInstantRawPrice), lOriginalPrice, "instant 1");
 
         // act
@@ -204,7 +205,7 @@ contract OracleWriterTest is BaseTest {
         (,,, lIndex) = _pair.getReserves();
         lObs = _oracleCaller.observation(_pair, lIndex);
 
-        assertEq(lIndex, type(uint16).max);
+        assertEq(lIndex, Buffer.SIZE - 1);
         assertNotEq(LogCompression.fromLowResLog(lObs.logInstantRawPrice), lOriginalPrice);
         assertNotEq(LogCompression.fromLowResLog(lObs.logInstantClampedPrice), lOriginalPrice);
 

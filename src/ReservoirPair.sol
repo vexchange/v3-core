@@ -9,6 +9,7 @@ import { StdMath } from "src/libraries/StdMath.sol";
 import { FactoryStoreLib } from "src/libraries/FactoryStore.sol";
 import { Bytes32Lib } from "src/libraries/Bytes32.sol";
 import { LogCompression } from "src/libraries/LogCompression.sol";
+import { Buffer } from "src/libraries/Buffer.sol";
 
 import { IAssetManager, IERC20 } from "src/interfaces/IAssetManager.sol";
 import { IAssetManagedPair } from "src/interfaces/IAssetManagedPair.sol";
@@ -25,6 +26,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
     using SafeTransferLib for address;
     using StdMath for uint256;
     using FixedPointMathLib for uint256;
+    using Buffer for uint16;
 
     uint256 public constant MINIMUM_LIQUIDITY = 1e3;
     uint256 public constant FEE_ACCURACY = 1_000_000; // 100%
@@ -93,7 +95,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
 
     //////////////////////////////////////////////////////////////////////////*/
 
-    Slot0 internal _slot0 = Slot0({ reserve0: 0, reserve1: 0, packedTimestamp: 0, index: type(uint16).max });
+    Slot0 internal _slot0 = Slot0({ reserve0: 0, reserve1: 0, packedTimestamp: 0, index: Buffer.SIZE - 1});
 
     function _currentTime() internal view returns (uint32) {
         return uint32(block.timestamp & 0x7FFFFFFF);
@@ -590,7 +592,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
                 aPrevious.logAccRawPrice + aPrevious.logInstantRawPrice * int88(int256(uint256(aTimeElapsed)));
             int88 logAccClampedPrice =
                 aPrevious.logAccClampedPrice + aPrevious.logInstantClampedPrice * int88(int256(uint256(aTimeElapsed)));
-            aSlot0.index += 1;
+            aSlot0.index = aSlot0.index.next();
             _observations[aSlot0.index] = Observation(
                 int24(aLogInstantRawPrice),
                 int24(aLogInstantClampedPrice),
