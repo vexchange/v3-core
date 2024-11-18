@@ -2,7 +2,7 @@ pragma solidity ^0.8.0;
 
 import "test/__fixtures/BaseTest.sol";
 
-import { ReservoirPair, Observation } from "src/ReservoirPair.sol";
+import { ReservoirPair } from "src/ReservoirPair.sol";
 import { AssetManager } from "test/__mocks/AssetManager.sol";
 
 contract ReservoirPairTest is BaseTest {
