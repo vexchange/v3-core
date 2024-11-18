@@ -4,7 +4,6 @@ import "test/__fixtures/BaseTest.sol";
 
 import { ReservoirPair, Observation } from "src/ReservoirPair.sol";
 import { AssetManager } from "test/__mocks/AssetManager.sol";
-import { LogCompression } from "src/libraries/LogCompression.sol";
 
 contract ReservoirPairTest is BaseTest {
     AssetManager private _manager = new AssetManager();
@@ -206,36 +205,5 @@ contract ReservoirPairTest is BaseTest {
         _pair.burn(address(this));
         uint256 lNewShares = _pair.balanceOf(address(_platformFeeTo)) - lPlatformShares;
         assertLt(lNewShares, lPlatformShares);
-    }
-
-    function testManipulateOracle_TwoSwapsInOneBlock() external allPairs {
-        // arrange
-        _stepTime(12);
-        uint256 lAmtToSwap = Constants.INITIAL_MINT_AMOUNT * 3;
-
-        // act - since the first swap is the one that gets registered, we manipulate the price by several folds
-        _tokenA.mint(address(_pair), lAmtToSwap);
-        uint256 lAmtOut = _pair.swap(int256(lAmtToSwap), true, address(this), "");
-
-        (uint256 lReserve0, uint256 lReserve1,,uint16 lIndex) = _pair.getReserves();
-
-        // immediately arb back
-        _tokenB.transfer(address(_pair), lAmtOut);
-        _pair.swap(-int256(lAmtOut), true, address(this), "");
-
-        (lReserve0, lReserve1,, lIndex) = _pair.getReserves();
-
-        console.log(lReserve0);
-        console.log(lReserve1);
-
-        Observation memory lObs = _oracleCaller.observation(_pair, lIndex);
-
-        console.log(LogCompression.fromLowResLog(lObs.logInstantRawPrice));
-        console.log(LogCompression.fromLowResLog(lObs.logInstantClampedPrice));
-
-        // Attacker could repeat this for every second by only paying the swap fees. Thw mitigation factors on our end are that:
-        // 1. Arbitrage bots could submit txs that get sandwiched between the two malicious txs. How realistic is this if the attacker broadcasts 2 txs simultaneously (or even better, make it atomic via a contract call)?
-        //    - seems quite unlikely to me, cuz by the time the the block is included, the price would not have changed much to the arb bots, unless they are really sophisticated
-        // 2. The effect of the clamp
     }
 }

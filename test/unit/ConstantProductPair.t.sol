@@ -7,11 +7,10 @@ import { stdStorage } from "forge-std/Test.sol";
 import { MintableERC20 } from "test/__fixtures/MintableERC20.sol";
 import { AssetManager } from "test/__mocks/AssetManager.sol";
 
-import { ConstantProductOracleMath } from "src/libraries/ConstantProductOracleMath.sol";
 import { Uint31Lib } from "src/libraries/Uint31Lib.sol";
 import { LogCompression } from "src/libraries/LogCompression.sol";
 import { Observation } from "src/ReservoirPair.sol";
-import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
+import { IERC20 } from "src/GenericFactory.sol";
 import { ConstantProductPair, IReservoirCallee } from "src/curve/constant-product/ConstantProductPair.sol";
 
 contract ConstantProductPairTest is BaseTest, IReservoirCallee {

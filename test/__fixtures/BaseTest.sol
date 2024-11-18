@@ -14,8 +14,7 @@ import { ReservoirDeployer } from "src/ReservoirDeployer.sol";
 import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
 import { ReservoirPair } from "src/ReservoirPair.sol";
 import { ConstantProductPair } from "src/curve/constant-product/ConstantProductPair.sol";
-import { StablePair, AmplificationData } from "src/curve/stable/StablePair.sol";
-import { StableMintBurn } from "src/curve/stable/StableMintBurn.sol";
+import { StablePair } from "src/curve/stable/StablePair.sol";
 
 // solhint-disable-next-line max-states-count
 abstract contract BaseTest is Test {

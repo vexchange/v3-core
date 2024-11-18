@@ -5,9 +5,6 @@ import "test/__fixtures/BaseTest.sol";
 import "test/__fixtures/MintableERC20.sol";
 
 import { BytesLib } from "test/helpers/BytesLib.sol";
-import { ConstantProductPair } from "src/curve/constant-product/ConstantProductPair.sol";
-import { StablePair } from "src/curve/stable/StablePair.sol";
-import { GenericFactory } from "src/GenericFactory.sol";
 
 contract GenericFactoryTest is BaseTest {
     using BytesLib for bytes;

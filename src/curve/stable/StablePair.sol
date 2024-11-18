@@ -4,15 +4,12 @@ pragma solidity ^0.8.0;
 import { IReservoirCallee } from "src/interfaces/IReservoirCallee.sol";
 import { IGenericFactory } from "src/interfaces/IGenericFactory.sol";
 
+import { ReservoirPair, Slot0, IERC20 } from "src/ReservoirPair.sol";
+import { AmplificationData } from "src/structs/AmplificationData.sol";
 import { Bytes32Lib } from "src/libraries/Bytes32.sol";
 import { FactoryStoreLib } from "src/libraries/FactoryStore.sol";
-
-import { ReservoirPair, Slot0, Observation, IERC20 } from "src/ReservoirPair.sol";
 import { StableMath } from "src/libraries/StableMath.sol";
 import { StableOracleMath } from "src/libraries/StableOracleMath.sol";
-import { ConstantProductOracleMath } from "src/libraries/ConstantProductOracleMath.sol";
-
-import { AmplificationData } from "src/structs/AmplificationData.sol";
 
 contract StablePair is ReservoirPair {
     using FactoryStoreLib for IGenericFactory;

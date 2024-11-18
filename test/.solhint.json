@@ -7,6 +7,8 @@
     "not-rely-on-time": "off",
     "func-name-mixedcase": "off",
     "var-name-mixedcase": "off",
-    "no-inline-assembly": "off"
+    "no-inline-assembly": "off",
+    "no-global-import": "off",
+    "gas-custom-errors": "off"
   }
 }

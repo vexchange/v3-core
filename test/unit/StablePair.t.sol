@@ -10,7 +10,7 @@ import { StableOracleMath } from "src/libraries/StableOracleMath.sol";
 import { Uint31Lib } from "src/libraries/Uint31Lib.sol";
 import { StableMath } from "src/libraries/StableMath.sol";
 import { Observation } from "src/ReservoirPair.sol";
-import { StablePair, AmplificationData, IReservoirCallee } from "src/curve/stable/StablePair.sol";
+import { StablePair } from "src/curve/stable/StablePair.sol";
 import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
 import { AssetManagerReenter } from "test/__mocks/AssetManagerReenter.sol";
 
