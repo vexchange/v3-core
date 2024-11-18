@@ -566,14 +566,11 @@ contract OracleWriterTest is BaseTest {
         // but clamped price is at 2.98M
         assertApproxEqRel(LogCompression.fromLowResLog(lObs.logInstantClampedPrice), 2_984_969e18, 0.01e18);
 
-        uint256 lTimeStart = block.timestamp;
         while (LogCompression.fromLowResLog(lObs.logInstantClampedPrice) > 3495e18) {
             _stepTime(30);
             lCP.sync();
             (,,, lIndex) = lCP.getReserves();
             lObs = _oracleCaller.observation(lCP, lIndex);
-            console.log(LogCompression.fromLowResLog(lObs.logInstantClampedPrice));
         }
-        console.log("it took", block.timestamp - lTimeStart, "secs to get the clamped price to the true price");
     }
 }

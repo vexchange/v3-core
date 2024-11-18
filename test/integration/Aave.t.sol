@@ -1056,7 +1056,7 @@ contract AaveIntegrationTest is BaseTest {
         _stepTime(5000);
         uint256 lBalAfterTimePair = _manager.getBalance(_pair, USDC);
         uint256 lBalAfterTimeOther = _manager.getBalance(lOtherPair, USDC);
-        uint256 lClaimed = _manager.claimRewardForMarket(lUSDCMarket, lWavax);
+        _manager.claimRewardForMarket(lUSDCMarket, lWavax);
         // commenting out for now as AAVE is not currently giving out additional AVAX rewards
         // assertGt(lClaimed, 0);
         // dummy amount of proceeds from selling the rewards
