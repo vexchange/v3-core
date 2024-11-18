@@ -70,6 +70,7 @@ contract ReservoirDeployer {
         factory.write("Shared::platformFeeTo", address(this));
         factory.write("Shared::recoverer", address(this));
         factory.write("Shared::maxChangeRate", Constants.DEFAULT_MAX_CHANGE_RATE);
+        factory.write("Shared::maxChangePerTrade", Constants.DEFAULT_MAX_CHANGE_PER_TRADE);
 
         // Step complete.
         step += 1;

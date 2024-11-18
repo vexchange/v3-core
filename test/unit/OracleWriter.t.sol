@@ -2,6 +2,8 @@ pragma solidity ^0.8.0;
 
 import "test/__fixtures/BaseTest.sol";
 
+import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+
 import { ReservoirPair, Observation } from "src/ReservoirPair.sol";
 import { LogCompression } from "src/libraries/LogCompression.sol";
 import { FactoryStoreLib } from "src/libraries/FactoryStore.sol";
@@ -13,9 +15,10 @@ import { Constants } from "src/Constants.sol";
 
 contract OracleWriterTest is BaseTest {
     using FactoryStoreLib for GenericFactory;
+    using FixedPointMathLib for uint256;
 
     event OracleCallerUpdated(address oldCaller, address newCaller);
-    event MaxChangeRateUpdated(uint256 oldMaxChangeRate, uint256 newMaxChangeRate);
+    event ClampParamsUpdated(uint128 newMaxChangeRatePerSecond, uint128 newMaxChangePerTrade);
 
     ReservoirPair[] internal _pairs;
     ReservoirPair internal _pair;
@@ -136,33 +139,33 @@ contract OracleWriterTest is BaseTest {
         assertEq(_pair.maxChangeRate(), Constants.DEFAULT_MAX_CHANGE_RATE);
     }
 
-    function testSetMaxChangeRate_OnlyFactory() external allPairs {
+    function testSetClampParams_OnlyFactory() external allPairs {
         // act & assert
         vm.expectRevert();
-        _pair.setMaxChangeRate(1);
+        _pair.setClampParams(1, 1);
 
         vm.prank(address(_factory));
-        vm.expectEmit(false, false, false, true);
-        emit MaxChangeRateUpdated(Constants.DEFAULT_MAX_CHANGE_RATE, 1);
-        _pair.setMaxChangeRate(1);
+        vm.expectEmit(false, false, false, false);
+        emit ClampParamsUpdated(1, 1);
+        _pair.setClampParams(1, 1);
         assertEq(_pair.maxChangeRate(), 1);
     }
 
-    function testSetMaxChangeRate_TooLow() external allPairs {
+    function testSetClampParams_TooLow() external allPairs {
         // act & assert
         vm.prank(address(_factory));
         vm.expectRevert("RP: INVALID_CHANGE_PER_SECOND");
-        _pair.setMaxChangeRate(0);
+        _pair.setClampParams(0, 0);
     }
 
-    function testSetMaxChangeRate_TooHigh(uint256 aMaxChangeRate) external allPairs {
+    function testSetClampParams_TooHigh(uint256 aMaxChangeRate) external allPairs {
         // assume
-        uint256 lMaxChangeRate = bound(aMaxChangeRate, 0.01e18 + 1, type(uint256).max);
+        uint128 lMaxChangeRate = uint128(bound(aMaxChangeRate, 0.01e18 + 1, type(uint128).max));
 
         // act & assert
         vm.prank(address(_factory));
         vm.expectRevert("RP: INVALID_CHANGE_PER_SECOND");
-        _pair.setMaxChangeRate(lMaxChangeRate);
+        _pair.setClampParams(lMaxChangeRate, 1);
     }
 
     function testOracle_NoWriteInSameTimestamp() public allPairs {
@@ -293,6 +296,100 @@ contract OracleWriterTest is BaseTest {
         assertEq(lObs.timestamp, lStartingTimestamp + lJumpAhead);
     }
 
+    function testUpdateOracle_DecreasePrice_LongElapsedTime() external allPairs {
+        // arrange - assume that no trade has taken place in a long time
+        uint256 lOriginalPrice = 1e18;
+        uint256 lFastForward = type(uint24).max; // 16777216
+        _stepTime(lFastForward);
+
+        // act
+        _tokenA.mint(address(_pair), 5000e18);
+        _pair.swap(5000e18, true, address(this), "");
+
+        // assert - since the max change rate is useless price given the long time elapsed
+        // the clamped price should only be limited by the max change per trade
+        (,,, uint16 lIndex) = _pair.getReserves();
+        Observation memory lObs = _oracleCaller.observation(_pair, lIndex);
+        uint256 lMaxChangePerTrade = _pair.maxChangePerTrade();
+        assertApproxEqRel(
+            LogCompression.fromLowResLog(lObs.logInstantClampedPrice),
+            lOriginalPrice.fullMulDiv(1e18 - lMaxChangePerTrade, 1e18),
+            0.0001e18
+        );
+        assertLt(lObs.logInstantRawPrice, lObs.logInstantClampedPrice); // the log of the raw price should be more negative than the log of the clamped price
+    }
+
+    function testUpdateOracle_DecreasePrice_ExceedMaxChangeRate() external allPairs {
+        // arrange - set maxChangeRate to a very small number
+        uint256 lFastForward = 10;
+        uint256 lOriginalPrice = 1e18;
+        _stepTime(lFastForward);
+        vm.prank(address(_factory));
+        _pair.setClampParams(0.00001e18, 0.1e18);
+
+        // act
+        _tokenA.mint(address(_pair), 50e18);
+        _pair.swap(50e18, true, address(this), "");
+
+        // assert
+        (,,, uint16 lIndex) = _pair.getReserves();
+        Observation memory lObs = _oracleCaller.observation(_pair, lIndex);
+        uint256 lMaxChangeRate = _pair.maxChangeRate();
+        assertApproxEqRel(
+            LogCompression.fromLowResLog(lObs.logInstantClampedPrice),
+            lOriginalPrice.fullMulDiv(1e18 - lMaxChangeRate * lFastForward, 1e18),
+            0.0001e18
+        );
+    }
+
+    function testUpdateOracle_DecreasePrice_ExceedMaxChangePerTrade() external allPairs {
+        // arrange - set maxChangePerTrade to a very small number
+        uint256 lFastForward = 10;
+        uint256 lOriginalPrice = 1e18;
+        _stepTime(lFastForward);
+        vm.prank(address(_factory));
+        _pair.setClampParams(0.001e18, 0.000001e18);
+
+        // act
+        _tokenA.mint(address(_pair), 50e18);
+        _pair.swap(50e18, true, address(this), "");
+
+        // assert
+        (,,, uint16 lIndex) = _pair.getReserves();
+        Observation memory lObs = _oracleCaller.observation(_pair, lIndex);
+        uint256 lMaxChangePerTrade = _pair.maxChangePerTrade();
+        assertApproxEqRel(
+            LogCompression.fromLowResLog(lObs.logInstantClampedPrice),
+            lOriginalPrice.fullMulDiv(1e18 - lMaxChangePerTrade, 1e18),
+            0.0001e18
+        );
+    }
+
+    function testUpdateOracle_DecreasePrice_ExceedBothMaxChangeRateAndMaxChangePerTrade() external allPairs {
+        // arrange
+        uint256 lFastForward = 100 days;
+        uint256 lOriginalPrice = 1e18;
+        _stepTime(lFastForward);
+
+        // act
+        uint256 lAmtToSwap = type(uint104).max / 2;
+        _tokenA.mint(address(_pair), lAmtToSwap);
+        _pair.swap(int256(lAmtToSwap), true, address(this), "");
+
+        // assert
+        (,,, uint16 lIndex) = _pair.getReserves();
+        Observation memory lObs = _oracleCaller.observation(_pair, lIndex);
+        uint256 lMaxChangeRate = _pair.maxChangeRate();
+        uint256 lMaxChangePerTrade = _pair.maxChangePerTrade();
+
+        uint256 lLowerRateOfChange = lMaxChangePerTrade.min(lMaxChangeRate * lFastForward);
+        assertApproxEqRel(
+            LogCompression.fromLowResLog(lObs.logInstantClampedPrice),
+            lOriginalPrice.fullMulDiv(1e18 - lLowerRateOfChange, 1e18),
+            0.0001e18
+        );
+    }
+
     function testOracle_SameReservesDiffPrice(uint32 aNewStartTime) external randomizeStartTime(aNewStartTime) {
         // arrange
         ConstantProductPair lCP = ConstantProductPair(_createPair(address(_tokenB), address(_tokenC), 0));
@@ -415,28 +512,68 @@ contract OracleWriterTest is BaseTest {
     }
 
     function testOracle_OverflowAccPrice(uint32 aNewStartTime) public randomizeStartTime(aNewStartTime) allPairs {
-        // assume
-        vm.assume(aNewStartTime >= 1);
-
         // arrange - make the last observation close to overflowing
-        (,,, uint16 lIndex) = _stablePair.getReserves();
-        _writeObservation(
-            _stablePair, lIndex, 1e3, 1e3, type(int88).max, type(int88).max, uint32(block.timestamp % 2 ** 31)
-        );
-        Observation memory lPrevObs = _oracleCaller.observation(_stablePair, lIndex);
+        (,,, uint16 lIndex) = _pair.getReserves();
+        _writeObservation(_pair, lIndex, 1e3, 1e3, type(int88).max, type(int88).max, uint32(block.timestamp % 2 ** 31));
+        Observation memory lPrevObs = _oracleCaller.observation(_pair, lIndex);
 
         // act
         uint256 lAmountToSwap = 5e18;
-        _tokenB.mint(address(_stablePair), lAmountToSwap);
-        _stablePair.swap(-int256(lAmountToSwap), true, address(this), "");
+        _tokenB.mint(address(_pair), lAmountToSwap);
+        _pair.swap(-int256(lAmountToSwap), true, address(this), "");
 
         _stepTime(5);
-        _stablePair.sync();
+        _pair.sync();
 
         // assert - when it overflows it goes from a very positive number to a very negative number
-        (,,, lIndex) = _stablePair.getReserves();
-        Observation memory lCurrObs = _oracleCaller.observation(_stablePair, lIndex);
+        (,,, lIndex) = _pair.getReserves();
+        Observation memory lCurrObs = _oracleCaller.observation(_pair, lIndex);
         assertLt(lCurrObs.logAccRawPrice, lPrevObs.logAccRawPrice);
     }
 
+    function testOracle_MintWrongPriceThenConverge() public {
+        // arrange - suppose that token C is ETH and token D is USDC
+        ReservoirPair lCP = ReservoirPair(_createPair(address(_tokenC), address(_tokenD), 0));
+        // initialize the pair with a price of 3M USD / ETH
+        _tokenC.mint(address(lCP), 0.000001e18);
+        _tokenD.mint(address(lCP), 3e6);
+        lCP.mint(address(this));
+        vm.startPrank(address(_factory));
+        lCP.setCustomSwapFee(0);
+        // set to 0.25 bp/s and 2% per trade
+        lCP.setClampParams(0.000025e18, 0.02e18);
+        vm.stopPrank();
+
+        // sanity - instant price is 3M
+        (,,, uint16 lIndex) = lCP.getReserves();
+        Observation memory lObs = _oracleCaller.observation(lCP, lIndex);
+        assertApproxEqRel(LogCompression.fromLowResLog(lObs.logInstantClampedPrice), 3_000_000e18, 0.0001e18);
+
+        // act - arbitrage happens that make the price go to around 3500 USD / ETH in one trade
+        _stepTime(10);
+        _tokenC.mint(address(lCP), 0.0000283e18);
+        lCP.swap(
+            address(lCP.token0()) == address(_tokenC) ? int256(0.0000283e18) : -int256(0.0000283e18),
+            true,
+            address(this),
+            ""
+        );
+
+        // the instant raw price now is at 3494 USD
+        (,,, lIndex) = lCP.getReserves();
+        lObs = _oracleCaller.observation(lCP, lIndex);
+        assertApproxEqRel(LogCompression.fromLowResLog(lObs.logInstantRawPrice), 3494e18, 0.01e18);
+        // but clamped price is at 2.98M
+        assertApproxEqRel(LogCompression.fromLowResLog(lObs.logInstantClampedPrice), 2_984_969e18, 0.01e18);
+
+        uint256 lTimeStart = block.timestamp;
+        while (LogCompression.fromLowResLog(lObs.logInstantClampedPrice) > 3495e18) {
+            _stepTime(30);
+            lCP.sync();
+            (,,, lIndex) = lCP.getReserves();
+            lObs = _oracleCaller.observation(lCP, lIndex);
+            console.log(LogCompression.fromLowResLog(lObs.logInstantClampedPrice));
+        }
+        console.log("it took", block.timestamp - lTimeStart, "secs to get the clamped price to the true price");
+    }
 }
