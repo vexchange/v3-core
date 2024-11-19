@@ -154,6 +154,18 @@ contract EulerIntegrationTest is BaseTest {
         vm.makePersistent(address(_tokenC));
     }
 
+    function testSetVaultForAsset_OutstandingShares() external allNetworks {
+        // arrange
+        _pair = _pairs[0];
+        _increaseManagementOneToken(123);
+
+        // act & assert
+        vm.expectRevert(EulerV2Manager.OutstandingSharesForVault.selector);
+        _manager.setVaultForAsset(USDC,USDCVault);
+    }
+
+    // TODO: add back test cases for totalShares
+
     function testOnlyOwnerOrGuardian() external allNetworks {
         // arrange
         _manager.setGuardian(_alice);
@@ -511,60 +523,6 @@ contract EulerIntegrationTest is BaseTest {
             )
         );
     }
-
-    //    function testAfterLiquidityEvent_Mint_RevertIfFrozen() public allNetworks allPairs {
-    //        // arrange
-    //        uint256 lMintAmt = 100e6;
-    //        vm.prank(_aaveAdmin);
-    //        _poolConfigurator.setReserveFreeze(address(USDC), true);
-    //
-    //        // act & assert
-    //        _deal(address(USDC), address(this), lMintAmt);
-    //        USDC.transfer(address(_pair), lMintAmt);
-    //        _tokenA.mint(address(_pair), lMintAmt);
-    //        vm.expectRevert(bytes(Errors.RESERVE_FROZEN));
-    //        _pair.mint(address(this));
-    //    }
-    //
-    //    function testAfterLiquidityEvent_Mint_RevertIfPaused() public allNetworks allPairs {
-    //        // arrange
-    //        uint256 lMintAmt = 100e6;
-    //        vm.prank(_aaveAdmin);
-    //        _poolConfigurator.setReservePause(address(USDC), true);
-    //
-    //        // act & assert
-    //        _deal(address(USDC), address(this), lMintAmt);
-    //        USDC.transfer(address(_pair), lMintAmt);
-    //        _tokenA.mint(address(_pair), lMintAmt);
-    //        vm.expectRevert(bytes(Errors.RESERVE_PAUSED));
-    //        _pair.mint(address(this));
-    //    }
-    //
-    //    function testAfterLiquidityEvent_Burn_RevertIfFrozen() public allNetworks allPairs {
-    //        // arrange
-    //        uint256 lAmtToBurn = _pair.balanceOf(_alice) / 2;
-    //        vm.prank(_aaveAdmin);
-    //        _poolConfigurator.setReserveFreeze(address(USDC), true);
-    //
-    //        // act & assert
-    //        vm.prank(_alice);
-    //        _pair.transfer(address(_pair), lAmtToBurn);
-    //        vm.expectRevert(bytes(Errors.RESERVE_FROZEN));
-    //        _pair.burn(address(this));
-    //    }
-    //
-    //    function testAfterLiquidityEvent_Burn_RevertIfPaused() public allNetworks allPairs {
-    //        // arrange
-    //        uint256 lAmtToBurn = _pair.balanceOf(_alice) / 2;
-    //        vm.prank(_aaveAdmin);
-    //        _poolConfigurator.setReservePause(address(USDC), true);
-    //
-    //        // act & assert
-    //        vm.prank(_alice);
-    //        _pair.transfer(address(_pair), lAmtToBurn);
-    //        vm.expectRevert(bytes(Errors.RESERVE_PAUSED));
-    //        _pair.burn(address(this));
-    //    }
 
     function testAfterLiquidityEvent_RevertIfNotPair() public allNetworks {
         // act & assert

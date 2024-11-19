@@ -69,10 +69,10 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     //////////////////////////////////////////////////////////////////////////*/
 
     function setVaultForAsset(IERC20 aAsset, IERC4626 aVault) external onlyOwner {
-        IERC4626 lVault = assetVault;
+        IERC4626 lVault = assetVault[aAsset];
         // this is to prevent accidental moving of vaults when there are still shares outstanding
         // as it will prevent the AMM pairs from getting their tokens back from the vault
-        if (lVault != address(0) && totalShares[lVault] != 0) {
+        if (address(lVault) != address(0) && totalShares[lVault] != 0) {
             revert OutstandingSharesForVault();
         }
 
@@ -112,7 +112,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         returns (uint256 rShares)
     {
         rShares = aVault.previewDeposit(aAmount);
-        totalShares += rShares;
+        totalShares[aVault] += rShares;
         shares[aPair][aToken] += rShares;
     }
 
@@ -121,7 +121,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         returns (uint256 rShares)
     {
         rShares = aVault.previewWithdraw(aAmount);
-        totalShares -= rShares;
+        totalShares[aVault] -= rShares;
         shares[aPair][aToken] -= rShares;
     }
 
@@ -228,7 +228,6 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         SafeTransferLib.safeApprove(address(aToken), address(aVault), aAmount);
 
         uint256 lSharesReceived = aVault.deposit(aAmount, address(this));
-
         require(lExpectedShares == lSharesReceived, "AM: INVEST_SHARES_MISMATCH");
 
         emit Investment(aPair, aToken, lSharesReceived);
