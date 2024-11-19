@@ -277,6 +277,7 @@ contract EulerIntegrationTest is BaseTest {
 
         assertEq(USDCVault.balanceOf(address(_manager)), lExpectedShares);
         assertEq(_manager.shares(_pair, USDC), lExpectedShares);
+        assertEq(_manager.totalShares(USDCVault), lExpectedShares);
     }
 
     function testAdjustManagement_DecreaseManagementOneToken() public allNetworks allPairs {
@@ -301,6 +302,7 @@ contract EulerIntegrationTest is BaseTest {
         assertApproxEqAbs(USDC.balanceOf(address(_pair)), MINT_AMOUNT, 1);
         assertEq(USDCVault.balanceOf(address(_manager)), 0);
         assertEq(_manager.shares(_pair, USDC), 0);
+        assertEq(_manager.totalShares(USDCVault), 0);
     }
 
     function testAdjustManagement_DecreaseManagementBeyondShare() public allNetworks allPairs {
@@ -436,6 +438,7 @@ contract EulerIntegrationTest is BaseTest {
 
         // assert
         assertEq(lShares, _manager.shares(_pair, USDC));
+        assertEq(_manager.totalShares(USDCVault), lShares);
     }
 
     function testShares_AdjustManagementAfterProfit(uint256 aAmountToManage1, uint256 aAmountToManage2)
@@ -863,6 +866,7 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(address(_pair.assetManager()), address(0));
         assertEq(address(lOtherPair.assetManager()), address(0));
         assertEq(address(lThirdPair.assetManager()), address(0));
+        assertEq(_manager.totalShares(USDCVault), 0);
         assertEq(_manager.shares(_pair, USDC), 0);
         assertEq(_manager.shares(lOtherPair, USDC), 0);
         assertEq(_manager.shares(lThirdPair, USDC), 0);
@@ -945,6 +949,7 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(address(_pair.assetManager()), address(0));
         assertEq(address(lPair2.assetManager()), address(0));
         assertEq(address(lPair3.assetManager()), address(0));
+        assertEq(_manager.totalShares(USDCVault), 0, "total shares");
         assertEq(_manager.shares(_pair, USDC), 0, "pair shares");
         assertEq(_manager.shares(lPair2, USDC), 0, "pair2 shares");
         assertEq(_manager.shares(lPair3, USDC), 0, "pair3 shares");
