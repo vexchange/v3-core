@@ -154,6 +154,17 @@ contract EulerIntegrationTest is BaseTest {
         vm.makePersistent(address(_tokenC));
     }
 
+    function testSetVaultForAsset() external allNetworks {
+        // arrange
+        IERC4626 lNewVault = IERC4626(address(5)); // any random address
+
+        // act
+        _manager.setVaultForAsset(USDC, lNewVault);
+
+        // assert
+        assertEq(address(_manager.assetVault(USDC)), address(lNewVault));
+    }
+
     function testSetVaultForAsset_OutstandingShares() external allNetworks {
         // arrange
         _pair = _pairs[0];
@@ -163,8 +174,6 @@ contract EulerIntegrationTest is BaseTest {
         vm.expectRevert(EulerV2Manager.OutstandingSharesForVault.selector);
         _manager.setVaultForAsset(USDC,USDCVault);
     }
-
-    // TODO: add back test cases for totalShares
 
     function testOnlyOwnerOrGuardian() external allNetworks {
         // arrange
