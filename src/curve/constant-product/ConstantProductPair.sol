@@ -11,7 +11,7 @@ import { ConstantProductOracleMath } from "src/libraries/ConstantProductOracleMa
 import { IReservoirCallee } from "src/interfaces/IReservoirCallee.sol";
 import { IGenericFactory, IERC20 } from "src/interfaces/IGenericFactory.sol";
 
-import { ReservoirPair, Slot0, Observation } from "src/ReservoirPair.sol";
+import { ReservoirPair, Slot0 } from "src/ReservoirPair.sol";
 
 contract ConstantProductPair is ReservoirPair {
     using FactoryStoreLib for IGenericFactory;
@@ -223,30 +223,15 @@ contract ConstantProductPair is ReservoirPair {
                                 ORACLE METHODS
     //////////////////////////////////////////////////////////////////////////*/
 
-    function _updateOracle(uint256 aReserve0, uint256 aReserve1, uint32 aTimeElapsed, uint32 aCurrentTimestamp)
+    /// @inheritdoc ReservoirPair
+    function _calcSpotAndLogPrice(uint256 aBalance0, uint256 aBalance1)
         internal
+        view
         override
+        returns (uint256, int256)
     {
-        Observation storage previous = _observations[_slot0.index];
-
-        (uint256 lCurrRawPrice, int112 currLogRawPrice) = ConstantProductOracleMath.calcLogPrice(
-            aReserve0 * token0PrecisionMultiplier(), aReserve1 * token1PrecisionMultiplier()
+        return ConstantProductOracleMath.calcLogPrice(
+            aBalance0 * token0PrecisionMultiplier(), aBalance1 * token1PrecisionMultiplier()
         );
-        (uint256 lCurrClampedPrice, int112 currLogClampedPrice) =
-            _calcClampedPrice(lCurrRawPrice, prevClampedPrice, aTimeElapsed);
-        int112 lCurrLogLiq = ConstantProductOracleMath.calcLogLiq(aReserve0, aReserve1);
-        prevClampedPrice = lCurrClampedPrice;
-
-        // overflow is desired here as the consumer of the oracle will be reading the difference in those
-        // accumulated log values
-        // when the index overflows it will overwrite the oldest observation and then forms a loop
-        unchecked {
-            int112 logAccRawPrice = previous.logAccRawPrice + currLogRawPrice * int112(int256(uint256(aTimeElapsed)));
-            int56 logAccClampedPrice =
-                previous.logAccClampedPrice + int56(currLogClampedPrice) * int56(int256(uint256(aTimeElapsed)));
-            int56 logAccLiq = previous.logAccLiquidity + int56(lCurrLogLiq) * int56(int256(uint256(aTimeElapsed)));
-            _slot0.index += 1;
-            _observations[_slot0.index] = Observation(logAccRawPrice, logAccClampedPrice, logAccLiq, aCurrentTimestamp);
-        }
     }
 }

@@ -14,8 +14,7 @@ import { ReservoirDeployer } from "src/ReservoirDeployer.sol";
 import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
 import { ReservoirPair } from "src/ReservoirPair.sol";
 import { ConstantProductPair } from "src/curve/constant-product/ConstantProductPair.sol";
-import { StablePair, AmplificationData } from "src/curve/stable/StablePair.sol";
-import { StableMintBurn } from "src/curve/stable/StableMintBurn.sol";
+import { StablePair } from "src/curve/stable/StablePair.sol";
 
 // solhint-disable-next-line max-states-count
 abstract contract BaseTest is Test {
@@ -43,6 +42,8 @@ abstract contract BaseTest is Test {
     OracleCaller internal _oracleCaller;
 
     modifier randomizeStartTime(uint32 aNewStartTime) {
+        vm.assume(aNewStartTime > 1);
+
         vm.warp(aNewStartTime);
         _;
     }
@@ -100,7 +101,7 @@ abstract contract BaseTest is Test {
         address lDeployer = Create2Lib.computeAddress(address(this), lInitCode, bytes32(0));
 
         if (lDeployer.code.length == 0) {
-            rDeployer = new ReservoirDeployer{salt: bytes32(0)}(address(this), address(this), address(this));
+            rDeployer = new ReservoirDeployer{ salt: bytes32(0) }(address(this), address(this), address(this));
             require(address(rDeployer) == lDeployer, "CREATE2 ADDRESS MISMATCH");
             require(address(rDeployer) != address(0), "DEPLOY FACTORY FAILED");
         } else {
@@ -127,15 +128,20 @@ abstract contract BaseTest is Test {
     function _writeObservation(
         ReservoirPair aPair,
         uint256 aIndex,
-        int112 aRawPrice,
-        int56 aClampedPrice,
-        int56 aLiq,
+        int24 aLogInstantRawPrice,
+        int24 aLogInstantClampedPrice,
+        int88 aLogAccRawPrice,
+        int88 aLogAccClampedPrice,
         uint32 aTime
     ) internal {
         require(aTime < 2 ** 31, "TIMESTAMP TOO BIG");
         bytes32 lEncoded = bytes32(
             bytes.concat(
-                bytes4(aTime), bytes7(uint56(aLiq)), bytes7(uint56(aClampedPrice)), bytes14(uint112(aRawPrice))
+                bytes4(aTime),
+                bytes11(uint88(aLogAccClampedPrice)),
+                bytes11(uint88(aLogAccRawPrice)),
+                bytes3(uint24(aLogInstantClampedPrice)),
+                bytes3(uint24(aLogInstantRawPrice))
             )
         );
 

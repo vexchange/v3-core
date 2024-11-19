@@ -7,11 +7,10 @@ import { stdStorage } from "forge-std/Test.sol";
 import { MintableERC20 } from "test/__fixtures/MintableERC20.sol";
 import { AssetManager } from "test/__mocks/AssetManager.sol";
 
-import { ConstantProductOracleMath } from "src/libraries/ConstantProductOracleMath.sol";
 import { Uint31Lib } from "src/libraries/Uint31Lib.sol";
 import { LogCompression } from "src/libraries/LogCompression.sol";
 import { Observation } from "src/ReservoirPair.sol";
-import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
+import { IERC20 } from "src/GenericFactory.sol";
 import { ConstantProductPair, IReservoirCallee } from "src/curve/constant-product/ConstantProductPair.sol";
 
 contract ConstantProductPairTest is BaseTest, IReservoirCallee {
@@ -282,125 +281,6 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
                                     ORACLE
     //////////////////////////////////////////////////////////////////////////*/
 
-    function testOracle_NoWriteInSameTimestamp() public {
-        // arrange
-        (,,, uint16 lInitialIndex) = _constantProductPair.getReserves();
-        uint256 lAmountToSwap = 1e17;
-
-        // act
-        _tokenA.mint(address(_constantProductPair), lAmountToSwap);
-        _constantProductPair.swap(int256(lAmountToSwap), true, address(this), "");
-
-        vm.prank(_alice);
-        _constantProductPair.transfer(address(_constantProductPair), 1e18);
-        _constantProductPair.burn(address(this));
-
-        _constantProductPair.sync();
-
-        // assert
-        (,,, uint16 lFinalIndex) = _constantProductPair.getReserves();
-        assertEq(lFinalIndex, lInitialIndex);
-    }
-
-    function testOracle_WrapsAroundAfterFull() public {
-        // arrange
-        uint256 lAmountToSwap = 1e17;
-        uint256 lMaxObservations = 2 ** 16;
-
-        // act
-        for (uint256 i = 0; i < lMaxObservations + 4; ++i) {
-            _stepTime(5);
-            _tokenA.mint(address(_constantProductPair), lAmountToSwap);
-            _constantProductPair.swap(int256(lAmountToSwap), true, address(this), "");
-        }
-
-        // assert
-        (,,, uint256 lIndex) = _constantProductPair.getReserves();
-        assertEq(lIndex, 3);
-    }
-
-    function testWriteObservations() external {
-        // arrange
-        // swap 1
-        _stepTime(1);
-        _tokenA.mint(address(_constantProductPair), 1e17);
-        _constantProductPair.swap(1e17, true, address(this), "");
-
-        // swap 2
-        _stepTime(1);
-        _tokenA.mint(address(_constantProductPair), 1e17);
-        _constantProductPair.swap(1e17, true, address(this), "");
-
-        // sanity
-        (,,, uint256 lIndex) = _constantProductPair.getReserves();
-        assertEq(lIndex, 1);
-
-        Observation memory lObs = _oracleCaller.observation(_constantProductPair, 0);
-        assertTrue(lObs.logAccRawPrice == 0);
-        assertTrue(lObs.logAccLiquidity != 0);
-        assertTrue(lObs.timestamp != 0);
-
-        lObs = _oracleCaller.observation(_constantProductPair, 1);
-        assertTrue(lObs.logAccRawPrice != 0);
-        assertTrue(lObs.logAccLiquidity != 0);
-        assertTrue(lObs.timestamp != 0);
-
-        // act
-        _writeObservation(_constantProductPair, 0, int112(1337), int56(-1337), int56(-1337), uint32(666));
-
-        // assert
-        lObs = _oracleCaller.observation(_constantProductPair, 0);
-        assertEq(lObs.logAccRawPrice, int112(1337));
-        assertEq(lObs.logAccLiquidity, int112(-1337));
-        assertEq(lObs.timestamp, uint32(666));
-
-        lObs = _oracleCaller.observation(_constantProductPair, 1);
-        assertTrue(lObs.logAccRawPrice != 0);
-        assertTrue(lObs.logAccLiquidity != 0);
-        assertTrue(lObs.timestamp != 0);
-    }
-
-    function testOracle_OverflowAccPrice(uint32 aNewStartTime) public randomizeStartTime(aNewStartTime) {
-        // arrange - make the last observation close to overflowing
-        (,,, uint16 lIndex) = _constantProductPair.getReserves();
-        _writeObservation(
-            _constantProductPair, lIndex, type(int112).max, type(int56).max, 0, uint32(block.timestamp % 2 ** 31)
-        );
-        Observation memory lPrevObs = _oracleCaller.observation(_constantProductPair, lIndex);
-
-        // act
-        uint256 lAmountToSwap = 1e18;
-        _tokenB.mint(address(_constantProductPair), lAmountToSwap);
-        _constantProductPair.swap(-int256(lAmountToSwap), true, address(this), "");
-
-        _stepTime(5);
-        _constantProductPair.sync();
-
-        // assert - when it overflows it goes from a very positive number to a very negative number
-        (,,, lIndex) = _constantProductPair.getReserves();
-        Observation memory lCurrObs = _oracleCaller.observation(_constantProductPair, lIndex);
-        assertLt(lCurrObs.logAccRawPrice, lPrevObs.logAccRawPrice);
-    }
-
-    function testOracle_OverflowAccLiquidity(uint32 aNewStartTime) public randomizeStartTime(aNewStartTime) {
-        // assume
-        vm.assume(aNewStartTime < 2 ** 31);
-
-        // arrange
-        (,,, uint16 lIndex) = _constantProductPair.getReserves();
-        _writeObservation(_constantProductPair, lIndex, 0, 0, type(int56).max, uint32(block.timestamp));
-        Observation memory lPrevObs = _oracleCaller.observation(_constantProductPair, lIndex);
-
-        // act
-        _stepTime(5);
-        _constantProductPair.sync();
-
-        // assert
-        (,,, lIndex) = _constantProductPair.getReserves();
-        Observation memory lCurrObs = _oracleCaller.observation(_constantProductPair, lIndex);
-        assertLt(lCurrObs.logAccLiquidity, lPrevObs.logAccLiquidity);
-    }
-
     function testOracle_CorrectPrice(uint32 aNewStartTime) public randomizeStartTime(aNewStartTime) {
         // arrange
         ConstantProductPair lPair = ConstantProductPair(_createPair(address(_tokenB), address(_tokenC), 0));
@@ -492,21 +372,21 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
         vm.prank(address(_factory));
         lPair.setCustomSwapFee(0);
 
-        // price = 1
+        // price = 1 for 10 seconds
         _stepTime(10);
-        lPair.sync(); // obs0 is written here
 
         // act
-        // price = 4
+        // price = 4 for 10 seconds
         _tokenB.mint(address(lPair), 100e18);
-        lPair.swap(lPair.token0() == IERC20(address(_tokenB)) ? int256(100e18) : int256(-100e18), true, _bob, ""); // obs1 is written here
+        lPair.swap(lPair.token0() == IERC20(address(_tokenB)) ? int256(100e18) : int256(-100e18), true, _bob, ""); // obs0 is written here
         _stepTime(10);
 
-        // price = 16
+        // price = 16 for 10 seconds
         _tokenB.mint(address(lPair), 200e18);
-        lPair.swap(lPair.token0() == IERC20(address(_tokenB)) ? int256(200e18) : int256(-200e18), true, _bob, ""); // obs2 is written here
+        lPair.swap(lPair.token0() == IERC20(address(_tokenB)) ? int256(200e18) : int256(-200e18), true, _bob, ""); // obs1 is written here
         _stepTime(10);
-        lPair.sync(); // obs3 is written here
+
+        lPair.sync(); // obs2 is written here
 
         // assert
         Observation memory lObs0 = _oracleCaller.observation(lPair, 0);
@@ -515,16 +395,20 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
 
         assertEq(lObs0.logAccRawPrice, LogCompression.toLowResLog(1e18) * 10, "1");
         assertEq(
-            lObs1.logAccRawPrice, -LogCompression.toLowResLog(1e18) * 10 - LogCompression.toLowResLog(0.25e18) * 10, "2"
+            lObs1.logAccRawPrice, LogCompression.toLowResLog(1e18) * 10 + LogCompression.toLowResLog(4e18) * 10, "2"
         );
         assertEq(
             lObs2.logAccRawPrice,
-            -LogCompression.toLowResLog(1e18) * 10 - LogCompression.toLowResLog(0.25e18) * 10
-                - LogCompression.toLowResLog(0.0625e18) * 10,
+            LogCompression.toLowResLog(1e18) * 10 + LogCompression.toLowResLog(4e18) * 10
+                + LogCompression.toLowResLog(16e18) * 10,
             "3"
         );
 
-        // Price for observation window 1-2
+        assertEq(lObs0.logInstantRawPrice, LogCompression.toLowResLog(4e18));
+        assertEq(lObs1.logInstantRawPrice, LogCompression.toLowResLog(16e18));
+        assertEq(lObs2.logInstantRawPrice, LogCompression.toLowResLog(16e18)); // spot price has not changed between obs1 and obs2
+
+        // Price for observation window 0-1
         assertApproxEqRel(
             LogCompression.fromLowResLog(
                 (lObs1.logAccRawPrice - lObs0.logAccRawPrice) / int32(Uint31Lib.sub(lObs1.timestamp, lObs0.timestamp))
@@ -532,7 +416,7 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
             4e18,
             0.0001e18
         );
-        // Price for observation window 2-3
+        // Price for observation window 1-2
         assertApproxEqRel(
             LogCompression.fromLowResLog(
                 (lObs2.logAccRawPrice - lObs1.logAccRawPrice) / int32(Uint31Lib.sub(lObs2.timestamp, lObs1.timestamp))
@@ -540,79 +424,12 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
             16e18,
             0.0001e18
         );
-        // Price for observation window 1-3
+        // Price for observation window 0-2
         assertApproxEqRel(
             LogCompression.fromLowResLog(
                 (lObs2.logAccRawPrice - lObs0.logAccRawPrice) / int32(Uint31Lib.sub(lObs2.timestamp, lObs0.timestamp))
             ),
             8e18,
-            0.0001e18
-        );
-    }
-
-    function testOracle_CorrectLiquidity(uint32 aNewStartTime) public randomizeStartTime(aNewStartTime) {
-        // arrange
-        ConstantProductPair lPair = ConstantProductPair(_createPair(address(_tokenB), address(_tokenC), 0));
-        _tokenB.mint(address(lPair), Constants.INITIAL_MINT_AMOUNT);
-        _tokenC.mint(address(lPair), Constants.INITIAL_MINT_AMOUNT);
-        lPair.mint(_alice);
-        _stepTime(5);
-        lPair.sync();
-
-        // act
-        _stepTime(5);
-        vm.prank(_alice);
-        uint256 lAmountToBurn = 1e18;
-        lPair.transfer(address(lPair), lAmountToBurn);
-        lPair.burn(address(this));
-
-        // assert
-        Observation memory lObs0 = _oracleCaller.observation(lPair, 0);
-        Observation memory lObs1 = _oracleCaller.observation(lPair, 1);
-
-        uint256 lAverageLiq = LogCompression.fromLowResLog((lObs1.logAccLiquidity - lObs0.logAccLiquidity) / 5);
-        // we check that it is within 0.01% of accuracy
-        assertApproxEqRel(lAverageLiq, Constants.INITIAL_MINT_AMOUNT, 0.0001e18);
-
-        // act
-        _stepTime(5);
-        lPair.sync();
-
-        // assert
-        Observation memory lObs2 = _oracleCaller.observation(lPair, 2);
-        uint256 lAverageLiq2 = LogCompression.fromLowResLog((lObs2.logAccLiquidity - lObs1.logAccLiquidity) / 5);
-        assertApproxEqRel(lAverageLiq2, 99e18, 0.0001e18);
-    }
-
-    function testOracle_LiquidityAtMaximum() public {
-        // arrange
-        uint256 lLiquidityToAdd = type(uint104).max - Constants.INITIAL_MINT_AMOUNT;
-        vm.roll(block.number + 1);
-        vm.warp(block.timestamp + 5);
-        _tokenA.mint(address(_constantProductPair), lLiquidityToAdd);
-        _tokenB.mint(address(_constantProductPair), lLiquidityToAdd);
-        _constantProductPair.mint(address(this));
-
-        // sanity
-        (uint104 lReserve0, uint104 lReserve1,,) = _constantProductPair.getReserves();
-        assertEq(lReserve0, type(uint104).max);
-        assertEq(lReserve1, type(uint104).max);
-
-        // act
-        vm.roll(block.number + 1);
-        vm.warp(block.timestamp + 5);
-        _constantProductPair.sync();
-
-        // assert
-        uint256 lTotalSupply = _constantProductPair.totalSupply();
-        assertEq(lTotalSupply, type(uint104).max);
-
-        (,,, uint16 lIndex) = _constantProductPair.getReserves();
-        Observation memory lObs0 = _oracleCaller.observation(_constantProductPair, 0);
-        Observation memory lObs1 = _oracleCaller.observation(_constantProductPair, lIndex);
-        assertApproxEqRel(
-            type(uint104).max,
-            LogCompression.fromLowResLog((lObs1.logAccLiquidity - lObs0.logAccLiquidity) / 5),
             0.0001e18
         );
     }
@@ -624,9 +441,6 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
         _tokenB.mint(address(_constantProductPair), lSwapAmt);
         _constantProductPair.swap(-int256(lSwapAmt), true, address(this), bytes(""));
 
-        // sanity
-        assertEq(_constantProductPair.prevClampedPrice(), 1e18);
-
         // act
         _stepTime(5);
         _constantProductPair.sync();
@@ -635,7 +449,8 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
         Observation memory lObs1 = _oracleCaller.observation(_constantProductPair, 1);
         // no diff between raw and clamped prices
         assertEq(lObs1.logAccClampedPrice, lObs1.logAccRawPrice);
-        assertLt(_constantProductPair.prevClampedPrice(), 1.0025e18);
+        assertEq(lObs1.logInstantClampedPrice, lObs1.logInstantRawPrice);
+        assertLt(LogCompression.fromLowResLog(lObs1.logInstantClampedPrice), 1.0025e18);
     }
 
     function testOracle_ClampedPrice_AtLimit() external {
@@ -646,9 +461,6 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
         _tokenB.mint(address(_constantProductPair), lSwapAmt);
         _constantProductPair.swap(-int256(lSwapAmt), true, address(this), bytes(""));
 
-        // sanity
-        assertEq(_constantProductPair.prevClampedPrice(), 1e18);
-
         // act
         _stepTime(5);
         _constantProductPair.sync();
@@ -657,7 +469,7 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
         Observation memory lObs1 = _oracleCaller.observation(_constantProductPair, 1);
         // no diff between raw and clamped prices
         assertEq(lObs1.logAccClampedPrice, lObs1.logAccRawPrice);
-        assertLt(_constantProductPair.prevClampedPrice(), 1.0025e18);
+        assertEq(lObs1.logInstantClampedPrice, lObs1.logInstantRawPrice);
     }
 
     function testOracle_ClampedPrice_OverLimit() external {
@@ -668,9 +480,6 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
         _tokenB.mint(address(_constantProductPair), lSwapAmt);
         _constantProductPair.swap(-int256(lSwapAmt), true, address(this), bytes(""));
 
-        // sanity
-        assertEq(_constantProductPair.prevClampedPrice(), 1e18);
-
         // act
         _stepTime(5);
         _constantProductPair.sync();
@@ -678,105 +487,6 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
         // assert
         Observation memory lObs1 = _oracleCaller.observation(_constantProductPair, 1);
         assertGt(lObs1.logAccRawPrice, lObs1.logAccClampedPrice);
-        assertEq(_constantProductPair.prevClampedPrice(), 1.0025e18);
-    }
-
-    function testPlatformFee_Disable() external {
-        // sanity
-        assertGt(_constantProductPair.platformFee(), 0);
-        _constantProductPair.sync();
-        IERC20 lToken0 = _constantProductPair.token0();
-        IERC20 lToken1 = _constantProductPair.token1();
-        uint256 lSwapAmount = Constants.INITIAL_MINT_AMOUNT / 2;
-        deal(address(lToken0), address(this), lSwapAmount);
-
-        // swap lSwapAmount back and forth
-        lToken0.transfer(address(_constantProductPair), lSwapAmount);
-        uint256 lAmountOut = _constantProductPair.swap(int256(lSwapAmount), true, address(this), bytes(""));
-        lToken1.transfer(address(_constantProductPair), lAmountOut);
-        lAmountOut = _constantProductPair.swap(-int256(lAmountOut), true, address(this), bytes(""));
-
-        _constantProductPair.sync();
-        assertGt(lToken0.balanceOf(address(_constantProductPair)), Constants.INITIAL_MINT_AMOUNT);
-        assertEq(lToken1.balanceOf(address(_constantProductPair)), Constants.INITIAL_MINT_AMOUNT);
-        assertEq(_constantProductPair.platformFee(), Constants.DEFAULT_PLATFORM_FEE);
-        assertEq(_constantProductPair.balanceOf(address(_platformFeeTo)), 0);
-
-        _constantProductPair.burn(address(this));
-        uint256 lPlatformShares = _constantProductPair.balanceOf(address(_platformFeeTo));
-        assertGt(lPlatformShares, 0);
-
-        // arrange
-        vm.prank(address(_factory));
-        _constantProductPair.setCustomPlatformFee(0);
-
-        // act
-        lToken0.transfer(address(_constantProductPair), lAmountOut);
-        lAmountOut = _constantProductPair.swap(int256(lAmountOut), true, address(this), bytes(""));
-        lToken1.transfer(address(_constantProductPair), lAmountOut);
-        _constantProductPair.swap(-int256(lAmountOut), true, address(this), bytes(""));
-
-        // assert
-        _constantProductPair.burn(address(this));
-        assertEq(_constantProductPair.balanceOf(address(_platformFeeTo)), lPlatformShares);
-    }
-
-    function testPlatformFee_DisableReenable() external {
-        // sanity
-        assertGt(_constantProductPair.platformFee(), 0);
-        _constantProductPair.sync();
-        IERC20 lToken0 = _constantProductPair.token0();
-        IERC20 lToken1 = _constantProductPair.token1();
-        uint256 lSwapAmount = Constants.INITIAL_MINT_AMOUNT / 2;
-        deal(address(lToken0), address(this), lSwapAmount);
-
-        // act - swap once with platform fee.
-        lToken0.transfer(address(_constantProductPair), lSwapAmount);
-        uint256 lAmountOut = _constantProductPair.swap(int256(lSwapAmount), true, address(this), bytes(""));
-        lToken1.transfer(address(_constantProductPair), lAmountOut);
-        lAmountOut = _constantProductPair.swap(-int256(lAmountOut), true, address(this), bytes(""));
-
-        _constantProductPair.sync();
-        assertGt(lToken0.balanceOf(address(_constantProductPair)), Constants.INITIAL_MINT_AMOUNT);
-        assertGe(lToken1.balanceOf(address(_constantProductPair)), Constants.INITIAL_MINT_AMOUNT);
-        assertEq(_constantProductPair.platformFee(), Constants.DEFAULT_PLATFORM_FEE);
-        assertEq(_constantProductPair.balanceOf(address(_platformFeeTo)), 0);
-
-        _constantProductPair.burn(address(this));
-        uint256 lPlatformShares = _constantProductPair.balanceOf(address(_platformFeeTo));
-        assertGt(lPlatformShares, 0);
-
-        // arrange
-        vm.prank(address(_factory));
-        _constantProductPair.setCustomPlatformFee(0);
-
-        // act - swap twice with no platform fee.
-        lToken0.transfer(address(_constantProductPair), lAmountOut);
-        lAmountOut = _constantProductPair.swap(int256(lAmountOut), true, address(this), bytes(""));
-        lToken1.transfer(address(_constantProductPair), lAmountOut);
-        lAmountOut = _constantProductPair.swap(-int256(lAmountOut), true, address(this), bytes(""));
-        lToken0.transfer(address(_constantProductPair), lAmountOut);
-        lAmountOut = _constantProductPair.swap(int256(lAmountOut), true, address(this), bytes(""));
-        lToken1.transfer(address(_constantProductPair), lAmountOut);
-        lAmountOut = _constantProductPair.swap(-int256(lAmountOut), true, address(this), bytes(""));
-
-        // assert
-        _constantProductPair.burn(address(this));
-        assertEq(_constantProductPair.balanceOf(address(_platformFeeTo)), lPlatformShares);
-
-        // act - swap once at half volume, again with platform fee.
-        vm.prank(address(_factory));
-        _constantProductPair.setCustomPlatformFee(type(uint256).max);
-        _constantProductPair.burn(address(this));
-        lToken0.transfer(address(_constantProductPair), lAmountOut / 2);
-        lAmountOut = _constantProductPair.swap(int256(lAmountOut / 2), true, address(this), bytes(""));
-        lToken1.transfer(address(_constantProductPair), lAmountOut);
-        lAmountOut = _constantProductPair.swap(-int256(lAmountOut), true, address(this), bytes(""));
-
-        // assert - we shouldn't have received more than the first time because
-        //          we disabled fees for the high volume.
-        _constantProductPair.burn(address(this));
-        uint256 lNewShares = _constantProductPair.balanceOf(address(_platformFeeTo)) - lPlatformShares;
-        assertLt(lNewShares, lPlatformShares);
+        assertApproxEqRel(LogCompression.fromLowResLog(lObs1.logInstantClampedPrice), 1.0025e18, 0.0002e18); // 0.02% error
     }
 }

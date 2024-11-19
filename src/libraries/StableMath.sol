@@ -3,10 +3,12 @@ pragma solidity ^0.8.0;
 
 import { MathUtils } from "src/libraries/MathUtils.sol";
 import { StdMath } from "src/libraries/StdMath.sol";
+import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 
 library StableMath {
     using MathUtils for uint256;
     using StdMath for uint256;
+    using FixedPointMathLib for uint256;
 
     /// @dev Extra precision for intermediate calculations.
     uint256 public constant A_PRECISION = 100;
@@ -125,9 +127,9 @@ library StableMath {
         uint256 D = s;
         (xp0, xp1) = xp0 < xp1 ? (xp0, xp1) : (xp1, xp0);
         for (uint256 i = 0; i < MAX_LOOP_LIMIT; i++) {
-            uint256 dP = (((D * D) / xp0) * D) / xp1 / 4;
+            uint256 dP = ((D * D) / xp0).fullMulDiv(D, xp1) / 4;
             prevD = D;
-            D = (((N_A * s) / A_PRECISION + 2 * dP) * D) / ((N_A - A_PRECISION) * D / A_PRECISION + 3 * dP);
+            D = ((N_A * s) / A_PRECISION + 2 * dP).fullMulDiv(D, (N_A - A_PRECISION) * D / A_PRECISION + 3 * dP);
             if (D.within1(prevD)) {
                 return D;
             }

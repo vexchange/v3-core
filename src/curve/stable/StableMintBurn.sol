@@ -63,6 +63,19 @@ contract StableMintBurn is StablePair {
         require(rToken0Fee <= type(uint104).max && rToken1Fee <= type(uint104).max, "SP: NON_OPTIMAL_FEE_TOO_LARGE");
     }
 
+    /// @notice Calculates D, the StableSwap invariant, based on a set of balances and a particular A.
+    /// See the StableSwap paper for details.
+    /// @dev Originally
+    /// https://github.com/saddle-finance/saddle-contract/blob/0b76f7fb519e34b878aa1d58cffc8d8dc0572c12/contracts/SwapUtils.sol#L319.
+    /// @return rLiquidity The invariant, at the precision of the pool.
+    function _computeLiquidity(uint256 aReserve0, uint256 aReserve1) internal view returns (uint256 rLiquidity) {
+        unchecked {
+            uint256 adjustedReserve0 = aReserve0 * token0PrecisionMultiplier();
+            uint256 adjustedReserve1 = aReserve1 * token1PrecisionMultiplier();
+            rLiquidity = StableMath._computeLiquidityFromAdjustedBalances(adjustedReserve0, adjustedReserve1, _getNA());
+        }
+    }
+
     function mint(address aTo) external override returns (uint256 rLiquidity) {
         // NB: Must sync management PNL before we load reserves.
         (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
