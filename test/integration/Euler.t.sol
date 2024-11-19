@@ -142,7 +142,7 @@ contract EulerIntegrationTest is BaseTest {
     function setUp() external {
         _networks.push(
             Network(
-                "http://127.0.0.1:8545",
+                getChain("mainnet").rpcUrl,
                 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
                 0xE982615d461DD5cD06575BbeA87624fda4e3de17,
                 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9 // Euler Prime USDC vault
