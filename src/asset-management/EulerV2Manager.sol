@@ -23,28 +23,33 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     event Investment(IAssetManagedPair pair, IERC20 token, uint256 shares);
     event Divestment(IAssetManagedPair pair, IERC20 token, uint256 shares);
 
+    error OutstandingSharesForVault();
+
     /// @dev Mapping from an ERC20 token to an Euler V2 vault.
     /// This implies that for a given asset, there can only be one vault.
     /// If the admin of the manager wishes to specify a different vault for an asset, they would have to manually ensure that all pairs have
     /// divested, otherwise the pairs might not be able to retrieve their assets.
     mapping(IERC20 => IERC4626) public assetVault;
 
-    /// @dev tracks how many shares each pair+token owns
+    /// @dev Tracks how many shares each pair+token owns.
     mapping(IAssetManagedPair => mapping(IERC20 => uint256)) public shares;
 
-    /// @dev percentage of the pool's assets, above and below which
-    /// the manager will divest the shortfall and invest the excess
+    /// @dev Tracks the total number of shares for a given vault held by this contract.
+    mapping(IERC4626 => uint256) public totalShares;
+
+    /// @dev Percentage of the pool's assets, above and below which
+    /// the manager will divest the shortfall and invest the excess.
     /// 1e18 == 100%
     uint128 public upperThreshold = 0.7e18; // 70%
     uint128 public lowerThreshold = 0.3e18; // 30%
 
-    /// @dev trusted party to adjust asset management parameters such as thresholds and windDownMode and
+    /// @dev Trusted party to adjust asset management parameters such as thresholds and windDownMode and
     /// to claim and sell additional rewards (through a DEX/aggregator) into the corresponding
-    /// Aave Token on behalf of the asset manager and then transfers the Aave Tokens back into the manager
+    /// Aave Token on behalf of the asset manager and then transfers the Aave Tokens back into the manager.
     address public guardian;
 
-    /// @dev when set to true by the owner or guardian, it will only allow divesting but not investing by
-    /// the pairs in this mode to facilitate replacement of asset managers to newer versions
+    /// @dev When set to true by the owner or guardian, it will only allow divesting but not investing by
+    /// the pairs in this mode to facilitate replacement of asset managers to newer versions.
     bool public windDownMode;
 
     // solhint-disable-next-line no-empty-blocks
@@ -64,7 +69,12 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     //////////////////////////////////////////////////////////////////////////*/
 
     function setVaultForAsset(IERC20 aAsset, IERC4626 aVault) external onlyOwner {
-        // what happens if there was already a vault set?
+        IERC4626 lVault = assetVault;
+        // this is to prevent accidental moving of vaults when there are still shares outstanding
+        // as it will prevent the AMM pairs from getting their tokens back from the vault
+        if (lVault != address(0) && totalShares[lVault] != 0) {
+            revert OutstandingSharesForVault();
+        }
 
         assetVault[aAsset] = aVault;
         emit VaultForAsset(aAsset, aVault);
@@ -101,9 +111,8 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         private
         returns (uint256 rShares)
     {
-        // expected shares to receive given aAmount
         rShares = aVault.previewDeposit(aAmount);
-
+        totalShares += rShares;
         shares[aPair][aToken] += rShares;
     }
 
@@ -112,6 +121,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         returns (uint256 rShares)
     {
         rShares = aVault.previewWithdraw(aAmount);
+        totalShares -= rShares;
         shares[aPair][aToken] -= rShares;
     }
 
