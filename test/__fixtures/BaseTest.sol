@@ -101,7 +101,7 @@ abstract contract BaseTest is Test {
         address lDeployer = Create2Lib.computeAddress(address(this), lInitCode, bytes32(0));
 
         if (lDeployer.code.length == 0) {
-            rDeployer = new ReservoirDeployer{salt: bytes32(0)}(address(this), address(this), address(this));
+            rDeployer = new ReservoirDeployer{ salt: bytes32(0) }(address(this), address(this), address(this));
             require(address(rDeployer) == lDeployer, "CREATE2 ADDRESS MISMATCH");
             require(address(rDeployer) != address(0), "DEPLOY FACTORY FAILED");
         } else {

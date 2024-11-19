@@ -1527,7 +1527,7 @@ contract StablePairTest is BaseTest {
 
         // anchor expected values to a hardcoded one
         assertApproxEqRel(lSpotPrice1, uint256(2.0226e18), 0.0001e18);
-        assertApproxEqRel(lSpotPrice2, uint256(10677e18), 0.0001e18);
+        assertApproxEqRel(lSpotPrice2, uint256(10_677e18), 0.0001e18);
 
         // Price for observation window 0-1
         assertApproxEqRel(

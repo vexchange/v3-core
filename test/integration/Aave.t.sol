@@ -144,7 +144,13 @@ contract AaveIntegrationTest is BaseTest {
     }
 
     function setUp() external {
-        _networks.push(Network(getChain("avalanche").rpcUrl, 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E, 0xB7887FED5E2f9dc1A66fBb65f76BA3731d82341A));
+        _networks.push(
+            Network(
+                getChain("avalanche").rpcUrl,
+                0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E,
+                0xB7887FED5E2f9dc1A66fBb65f76BA3731d82341A
+            )
+        );
 
         vm.makePersistent(address(_tokenA));
         vm.makePersistent(address(_tokenB));
@@ -612,7 +618,8 @@ contract AaveIntegrationTest is BaseTest {
         uint256 lReserveUSDCAfter = _pair.token0() == USDC ? lReserve0After : lReserve1After;
         assertTrue(
             MathUtils.within1(
-                lNewManagedAmt, lReserveUSDCAfter.divWad(_manager.lowerThreshold() + _manager.upperThreshold()) / 2)
+                lNewManagedAmt, lReserveUSDCAfter.divWad(_manager.lowerThreshold() + _manager.upperThreshold()) / 2
+            )
         );
     }
 

@@ -8,7 +8,6 @@ struct Observation {
     int24 logInstantRawPrice;
     // natural log (ln) of the clamped instant price
     int24 logInstantClampedPrice;
-
     // natural log (ln) of the raw accumulated price (token1/token0)
     // in the case of maximum price supported by the oracle (~5.79e58 == e ** 135.3060)
     // (1353060) 21 bits multiplied by 32 bits of the timestamp gives 53 bits
@@ -16,7 +15,6 @@ struct Observation {
     int88 logAccRawPrice;
     // natural log (ln) of the clamped accumulated price (token1/token0)
     int88 logAccClampedPrice;
-
     // overflows every 136 years, in the year 2106
     uint32 timestamp;
 }
