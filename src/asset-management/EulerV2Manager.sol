@@ -316,8 +316,10 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         // the last in the list will take all the remaining shares, and sometimes will get 1 or 2 more than they're entitled to
         // due to the rounding down in previous calculations for other pairs
         // this is to prevent the sum of each pair+token's shares not summing up to totalShares
-        shares[aPairs[lLength - 1]][aAsset] = lNewShares - lSharesAllocated;
-        lSharesAllocated += shares[aPairs[lLength - 1]][aAsset];
+        uint256 lSharesForLastPair = lNewShares - lSharesAllocated;
+
+        shares[aPairs[lLength - 1]][aAsset] += lSharesForLastPair;
+        lSharesAllocated += lSharesForLastPair;
         require(lSharesAllocated == lNewShares, "AM: REWARD_SHARES_MISMATCH");
     }
 }

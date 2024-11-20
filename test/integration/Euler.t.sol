@@ -5,6 +5,7 @@ import { Errors } from "test/integration/AaveErrors.sol";
 
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 
+import { IAssetManagedPair } from "src/interfaces/IAssetManagedPair.sol";
 import { IPool } from "src/interfaces/aave/IPool.sol";
 import { IAaveProtocolDataProvider } from "src/interfaces/aave/IAaveProtocolDataProvider.sol";
 import { IPoolAddressesProvider } from "src/interfaces/aave/IPoolAddressesProvider.sol";
@@ -34,10 +35,8 @@ contract EulerIntegrationTest is BaseTest {
     using FactoryStoreLib for GenericFactory;
     using FixedPointMathLib for uint256;
 
-    event RewardsClaimed(
-        address indexed user, address indexed reward, address indexed to, address claimer, uint256 amount
-    );
     event Guardian(address newGuardian);
+    event Transfer(address from, address to, uint256 amount);
 
     // this amount is tailored to USDC as it only has 6 decimal places
     // using the usual 100e18 would be too large and would break AAVE
@@ -142,7 +141,8 @@ contract EulerIntegrationTest is BaseTest {
     function setUp() external {
         _networks.push(
             Network(
-                getChain("mainnet").rpcUrl,
+//                getChain("mainnet").rpcUrl,
+                "http://127.0.0.1:8545",
                 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
                 0xE982615d461DD5cD06575BbeA87624fda4e3de17,
                 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9 // Euler Prime USDC vault
@@ -172,7 +172,7 @@ contract EulerIntegrationTest is BaseTest {
 
         // act & assert
         vm.expectRevert(EulerV2Manager.OutstandingSharesForVault.selector);
-        _manager.setVaultForAsset(USDC,USDCVault);
+        _manager.setVaultForAsset(USDC, USDCVault);
     }
 
     function testOnlyOwnerOrGuardian() external allNetworks {
@@ -972,5 +972,57 @@ contract EulerIntegrationTest is BaseTest {
         // act & assert - attack should fail with our fix, and should succeed without the fix
         vm.expectRevert(stdError.arithmeticError);
         lExploit.attack(_manager);
+    }
+
+    function testClaimRewards() external allNetworks { }
+
+    function testDistributeRewardForPairs(uint256 aAmountToDistribute) external allNetworks allPairs {
+        // assume
+        uint256 lAmountToDistribute = bound(aAmountToDistribute, 100, 10_000_000e6);
+        int256 lAmtToManage1 = 5e6;
+        int256 lAmtToManage2 = 4839e6;
+        int256 lAmtToManage3 = 2919e6;
+
+        // arrange
+        _deal(address(USDC), address(this), lAmountToDistribute);
+        ConstantProductPair lPair2 = ConstantProductPair(_createPair(address(USDC), address(_tokenC), 0));
+        StablePair lPair3 = StablePair(_createPair(address(USDC), address(_tokenC), 1));
+
+        _deal(address(USDC), address(lPair2), MINT_AMOUNT);
+        _tokenC.mint(address(lPair2), MINT_AMOUNT);
+        lPair2.mint(_alice);
+        vm.prank(address(_factory));
+        lPair2.setManager(_manager);
+
+        _deal(address(USDC), address(lPair3), MINT_AMOUNT);
+        _tokenC.mint(address(lPair3), MINT_AMOUNT);
+        lPair3.mint(_alice);
+        vm.prank(address(_factory));
+        lPair3.setManager(_manager);
+
+        _manager.adjustManagement(
+            _pair, _pair.token0() == USDC ? lAmtToManage1 : int256(0), _pair.token1() == USDC ? lAmtToManage1 : int256(0)
+        );
+        _manager.adjustManagement(
+            lPair2, lPair2.token0() == USDC ? lAmtToManage2 : int256(0), lPair2.token1() == USDC ? lAmtToManage2 : int256(0)
+        );
+        _manager.adjustManagement(
+            lPair3, lPair3.token0() == USDC ? lAmtToManage3 : int256(0), lPair3.token1() == USDC ? lAmtToManage3 : int256(0)
+        );
+
+        IAssetManagedPair[] memory lPairs = new IAssetManagedPair[](3);
+        lPairs[0] = _pair;
+        lPairs[1] = lPair2;
+        lPairs[2] = lPair3;
+
+        // act
+        USDC.approve(address(_manager), lAmountToDistribute);
+        _manager.distributeRewardForPairs(USDC, lAmountToDistribute, lPairs);
+
+        // assert
+        uint256 lPairShares = _manager.shares(_pair, USDC);
+        uint256 lPair2Shares = _manager.shares(lPair2, USDC);
+        uint256 lPair3Shares = _manager.shares(lPair3, USDC);
+        assertEq(lPairShares + lPair2Shares + lPair3Shares, _manager.totalShares(USDCVault));
     }
 }
