@@ -46,7 +46,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
 
     /// @dev Trusted party to adjust asset management parameters such as thresholds and windDownMode and
     /// to claim and sell additional rewards (through a DEX/aggregator) into the corresponding
-    /// Aave Token on behalf of the asset manager and then transfers the Aave Tokens back into the manager.
+    /// underlying tokens on behalf of the asset manager and then transfers them back into the manager.
     address public guardian;
 
     /// @dev When set to true by the owner or guardian, it will only allow divesting but not investing by
@@ -148,7 +148,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
                                 ADJUST MANAGEMENT
     //////////////////////////////////////////////////////////////////////////*/
 
-    /// @notice if token0 or token1 does not have a market in AAVE, the tokens will not be transferred
+    /// @notice if token0 or token1 does not have designated vault, the tokens will not be transferred
     function adjustManagement(IAssetManagedPair aPair, int256 aAmount0Change, int256 aAmount1Change)
         external
         onlyOwner
