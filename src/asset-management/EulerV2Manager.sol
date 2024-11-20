@@ -288,8 +288,8 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         }
     }
 
-    /// @dev The guardian or owner would first claim rewards on behalf of the asset manager by calling `claimRewards`, sell it for the underlying token,
-    /// transfer it into the asset manager, and distribute the proceeds in the form of ERC4626 shares to the pairs.
+    /// @dev The guardian or owner would first claim rewards on behalf of the asset manager by calling `claimRewards` and sell it for the underlying token.
+    /// The asset manager pulls the assets, deposits it to the vault, and distribute the proceeds in the form of ERC4626 shares to the pairs.
     /// Due to integer arithmetic the last pair of the array will get one or two more shares, so as to maintain the invariant that
     /// the sum of shares for all pair+token equals the totalShares.
     function distributeRewardForPairs(IERC20 aAsset, uint256 aAmount, IAssetManagedPair[] calldata aPairs)
