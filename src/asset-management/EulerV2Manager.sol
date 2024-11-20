@@ -10,6 +10,7 @@ import { Address } from "@openzeppelin/utils/Address.sol";
 
 import { IAssetManagedPair } from "src/interfaces/IAssetManagedPair.sol";
 import { IAssetManager, IERC20 } from "src/interfaces/IAssetManager.sol";
+import { IDistributor } from "src/interfaces/merkl/IDistributor.sol";
 import { IERC4626 } from "lib/forge-std/src/interfaces/IERC4626.sol";
 
 contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
@@ -137,7 +138,6 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     function _getBalance(IAssetManagedPair aOwner, IERC20 aToken) private view returns (uint256 rTokenBalance) {
         IERC4626 lVault = assetVault[aToken];
 
-        // TODO: what happens if something was assigned, and then deassigned?
         if (address(lVault) != address(0)) {
             uint256 lShares = shares[aOwner][aToken];
             rTokenBalance = lVault.convertToAssets(lShares);
@@ -167,7 +167,6 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         IERC4626 lToken1Vault = assetVault[lToken1];
 
         // do not do anything if there isn't a market for the token
-        // TODO: what if there is still remaining outstanding balance, but the mapping is set to 0?
         if (address(lToken0Vault) == address(0)) {
             aAmount0Change = 0;
         }
@@ -275,4 +274,51 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////////////////
                                 ADDITIONAL REWARDS
     //////////////////////////////////////////////////////////////////////////*/
+
+    function claimRewards(
+        IDistributor aDistributor,
+        address[] calldata aUsers,
+        address[] calldata aTokens,
+        uint256[] calldata aAmounts,
+        bytes32[][] calldata aProofs
+    ) external onlyGuardianOrOwner {
+        aDistributor.claim(aUsers, aTokens, aAmounts, aProofs);
+
+        for (uint256 i = 0; i < aTokens.length; ++i) {
+            SafeTransferLib.safeTransfer(aTokens[i], msg.sender, aAmounts[i]);
+        }
+    }
+
+    /// @dev The guardian or owner would first claim rewards on behalf of the asset manager by calling `claimRewards`, sell it for the underlying token,
+    /// transfer it into the asset manager, and distribute the proceeds in the form of ERC4626 shares to the pairs.
+    /// Due to integer arithmetic the last pair of the array will get one or two more shares, so as to maintain the invariant that
+    /// the sum of shares for all pair+token equals the totalShares.
+    function distributeRewardForPairs(IERC20 aAsset, uint256 aAmount, IAssetManagedPair[] calldata aPairs)
+        external
+        onlyGuardianOrOwner
+    {
+        // pull assets from guardian / owner
+        SafeTransferLib.safeTransferFrom(address(aAsset), msg.sender, address(this), aAmount);
+        IERC4626 lVault = assetVault[aAsset];
+        SafeTransferLib.safeApprove(address(aAsset), address(lVault), aAmount);
+        uint256 lNewShares = lVault.deposit(aAmount, address(this));
+
+        uint256 lOldTotalShares = totalShares[lVault];
+        totalShares[lVault] += lNewShares;
+        uint256 lSharesAllocated;
+        uint256 lLength = aPairs.length;
+        for (uint256 i = 0; i < lLength - 1; ++i) {
+            uint256 lOldShares = shares[aPairs[i]][aAsset];
+            uint256 lNewSharesEntitled = lOldShares.divWad(lOldShares);
+            shares[aPairs[i]][aAsset] += lNewSharesEntitled;
+            lSharesAllocated += lNewSharesEntitled;
+        }
+
+        // the last in the list will take all the remaining shares, and sometimes will get 1 or 2 more than they're entitled to
+        // due to the rounding down in previous calculations for other pairs
+        // this is to prevent the sum of each pair+token's shares not summing up to totalShares
+        shares[aPairs[lLength - 1]][aAsset] = lNewShares - lSharesAllocated;
+        lSharesAllocated += shares[aPairs[lLength - 1]][aAsset];
+        require(lSharesAllocated == lNewShares, "AM: REWARD_SHARES_MISMATCH");
+    }
 }
