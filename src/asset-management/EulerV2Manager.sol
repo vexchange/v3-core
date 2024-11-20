@@ -108,22 +108,18 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
                                 HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
-    function _increaseShares(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aAmount)
+    function _increaseShares(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aShares)
         private
-        returns (uint256 rShares)
     {
-        rShares = aVault.previewDeposit(aAmount);
-        totalShares[aVault] += rShares;
-        shares[aPair][aToken] += rShares;
+        totalShares[aVault] += aShares;
+        shares[aPair][aToken] += aShares;
     }
 
-    function _decreaseShares(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aAmount)
+    function _decreaseShares(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aShares)
         private
-        returns (uint256 rShares)
     {
-        rShares = aVault.previewWithdraw(aAmount);
-        totalShares[aVault] -= rShares;
-        shares[aPair][aToken] -= rShares;
+        totalShares[aVault] -= aShares;
+        shares[aPair][aToken] -= aShares;
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -211,22 +207,19 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     }
 
     function _doDivest(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aAmount) private {
-        uint256 lShares = _decreaseShares(aPair, aToken, aVault, aAmount);
         uint256 lSharesBurned = aVault.withdraw(aAmount, address(this), address(this));
+        _decreaseShares(aPair, aToken, aVault, lSharesBurned);
 
-        require(lShares == lSharesBurned, "AM: DIVEST_SHARES_MISMATCH");
-
-        emit Divestment(aPair, aToken, lShares);
+        emit Divestment(aPair, aToken, lSharesBurned);
         SafeTransferLib.safeApprove(address(aToken), address(aPair), aAmount);
     }
 
     function _doInvest(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aAmount) private {
         require(aToken.balanceOf(address(this)) == aAmount, "AM: TOKEN_AMOUNT_MISMATCH");
-        uint256 lExpectedShares = _increaseShares(aPair, aToken, aVault, aAmount);
         SafeTransferLib.safeApprove(address(aToken), address(aVault), aAmount);
 
         uint256 lSharesReceived = aVault.deposit(aAmount, address(this));
-        require(lExpectedShares == lSharesReceived, "AM: INVEST_SHARES_MISMATCH");
+        _increaseShares(aPair, aToken, aVault, lSharesReceived);
 
         emit Investment(aPair, aToken, lSharesReceived);
     }
@@ -295,6 +288,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     function distributeRewardForPairs(IERC20 aAsset, uint256 aAmount, IAssetManagedPair[] calldata aPairs)
         external
         onlyGuardianOrOwner
+        nonReentrant
     {
         // pull assets from guardian / owner
         SafeTransferLib.safeTransferFrom(address(aAsset), msg.sender, address(this), aAmount);
