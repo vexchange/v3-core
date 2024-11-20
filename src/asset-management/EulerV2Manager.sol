@@ -72,7 +72,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     function setVaultForAsset(IERC20 aAsset, IERC4626 aVault) external onlyOwner {
         IERC4626 lVault = assetVault[aAsset];
         // this is to prevent accidental moving of vaults when there are still shares outstanding
-        // as it will prevent the AMM pairs from getting their tokens back from the vault
+        // as it will prevent the AMM pairs from redeeming underlying tokens from the vault
         if (address(lVault) != address(0) && totalShares[lVault] != 0) {
             revert OutstandingSharesForVault();
         }
@@ -309,7 +309,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         uint256 lLength = aPairs.length;
         for (uint256 i = 0; i < lLength - 1; ++i) {
             uint256 lOldShares = shares[aPairs[i]][aAsset];
-            uint256 lNewSharesEntitled = lOldShares.divWad(lOldShares);
+            uint256 lNewSharesEntitled = lNewShares.mulDiv(  lOldShares, lOldTotalShares);
             shares[aPairs[i]][aAsset] += lNewSharesEntitled;
             lSharesAllocated += lNewSharesEntitled;
         }
