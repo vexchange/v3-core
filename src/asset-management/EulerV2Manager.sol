@@ -130,7 +130,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
                                 GET BALANCE
     //////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev returns the balance of the token managed by various markets in the native precision
+    /// @dev Returns the balance of the underlying token managed the asset manager in the native precision.
     function getBalance(IAssetManagedPair aOwner, IERC20 aToken) external view returns (uint256) {
         return _getBalance(aOwner, aToken);
     }
@@ -148,7 +148,6 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
                                 ADJUST MANAGEMENT
     //////////////////////////////////////////////////////////////////////////*/
 
-    /// @notice if token0 or token1 does not have designated vault, the tokens will not be transferred
     function adjustManagement(IAssetManagedPair aPair, int256 aAmount0Change, int256 aAmount1Change)
         external
         onlyOwner
@@ -166,7 +165,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         IERC4626 lToken0Vault = assetVault[lToken0];
         IERC4626 lToken1Vault = assetVault[lToken1];
 
-        // do not do anything if there isn't a market for the token
+        // do not do anything if there isn't a designated vault for the token
         if (address(lToken0Vault) == address(0)) {
             aAmount0Change = 0;
         }
@@ -183,7 +182,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
             }
         }
 
-        // withdraw from the market
+        // withdraw from the vault
         if (aAmount0Change < 0) {
             uint256 lAmount0Change;
             unchecked {
