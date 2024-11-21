@@ -141,8 +141,7 @@ contract EulerIntegrationTest is BaseTest {
     function setUp() external {
         _networks.push(
             Network(
-//                getChain("mainnet").rpcUrl,
-                "http://127.0.0.1:8545",
+                getChain("mainnet").rpcUrl,
                 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
                 0xE982615d461DD5cD06575BbeA87624fda4e3de17,
                 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9 // Euler Prime USDC vault
@@ -976,12 +975,17 @@ contract EulerIntegrationTest is BaseTest {
 
     function testClaimRewards() external allNetworks { }
 
-    function testDistributeRewardForPairs(uint256 aAmountToDistribute) external allNetworks allPairs {
+    function testDistributeRewardForPairs(
+        uint256 aAmountToDistribute,
+        uint256 aAmtToManage1,
+        uint256 aAmtToManage2,
+        uint256 aAmtToManage3
+    ) external allNetworks allPairs {
         // assume
         uint256 lAmountToDistribute = bound(aAmountToDistribute, 100, 10_000_000e6);
-        int256 lAmtToManage1 = 5e6;
-        int256 lAmtToManage2 = 4839e6;
-        int256 lAmtToManage3 = 2919e6;
+        int256 lAmtToManage1 = int256(bound(aAmtToManage1, 1e6, 10_000e6));
+        int256 lAmtToManage2 = int256(bound(aAmtToManage2, 1e6, 10_000e6));
+        int256 lAmtToManage3 = int256(bound(aAmtToManage3, 1e6, 10_000e6));
 
         // arrange
         _deal(address(USDC), address(this), lAmountToDistribute);
@@ -1001,19 +1005,28 @@ contract EulerIntegrationTest is BaseTest {
         lPair3.setManager(_manager);
 
         _manager.adjustManagement(
-            _pair, _pair.token0() == USDC ? lAmtToManage1 : int256(0), _pair.token1() == USDC ? lAmtToManage1 : int256(0)
+            _pair,
+            _pair.token0() == USDC ? lAmtToManage1 : int256(0),
+            _pair.token1() == USDC ? lAmtToManage1 : int256(0)
         );
         _manager.adjustManagement(
-            lPair2, lPair2.token0() == USDC ? lAmtToManage2 : int256(0), lPair2.token1() == USDC ? lAmtToManage2 : int256(0)
+            lPair2,
+            lPair2.token0() == USDC ? lAmtToManage2 : int256(0),
+            lPair2.token1() == USDC ? lAmtToManage2 : int256(0)
         );
         _manager.adjustManagement(
-            lPair3, lPair3.token0() == USDC ? lAmtToManage3 : int256(0), lPair3.token1() == USDC ? lAmtToManage3 : int256(0)
+            lPair3,
+            lPair3.token0() == USDC ? lAmtToManage3 : int256(0),
+            lPair3.token1() == USDC ? lAmtToManage3 : int256(0)
         );
 
         IAssetManagedPair[] memory lPairs = new IAssetManagedPair[](3);
         lPairs[0] = _pair;
         lPairs[1] = lPair2;
         lPairs[2] = lPair3;
+        uint256 lPairSharesBefore =_manager.shares(_pair, USDC);
+        uint256 lPair2SharesBefore =_manager.shares(lPair2, USDC);
+        uint256 lPair3SharesBefore =_manager.shares(lPair3, USDC);
 
         // act
         USDC.approve(address(_manager), lAmountToDistribute);
@@ -1024,5 +1037,8 @@ contract EulerIntegrationTest is BaseTest {
         uint256 lPair2Shares = _manager.shares(lPair2, USDC);
         uint256 lPair3Shares = _manager.shares(lPair3, USDC);
         assertEq(lPairShares + lPair2Shares + lPair3Shares, _manager.totalShares(USDCVault));
+        assertGt(lPairShares, lPairSharesBefore);
+        assertGt(lPair2Shares, lPair2SharesBefore);
+        assertGt(lPair3Shares, lPair3SharesBefore);
     }
 }

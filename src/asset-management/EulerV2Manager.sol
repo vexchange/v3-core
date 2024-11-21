@@ -298,10 +298,12 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
 
         uint256 lOldTotalShares = totalShares[lVault];
         totalShares[lVault] = lOldTotalShares + lNewShares;
+
         uint256 lSharesAllocated;
         uint256 lLength = aPairs.length;
         for (uint256 i = 0; i < lLength - 1; ++i) {
             uint256 lOldShares = shares[aPairs[i]][aAsset];
+            // no need for fullMulDiv for real life amounts, assumes that lOldTotalShares != 0, which would be the case if there are pairs to distribute to anyway
             uint256 lNewSharesEntitled = lNewShares.mulDiv(lOldShares, lOldTotalShares);
             shares[aPairs[i]][aAsset] = lOldShares + lNewSharesEntitled;
             lSharesAllocated += lNewSharesEntitled;
