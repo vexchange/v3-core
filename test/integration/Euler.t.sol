@@ -1,7 +1,6 @@
 pragma solidity ^0.8.0;
 
 import "test/__fixtures/BaseTest.sol";
-import { Errors } from "test/integration/AaveErrors.sol";
 
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 
@@ -14,7 +13,7 @@ import { IRewardsController } from "src/interfaces/aave/IRewardsController.sol";
 
 import { FactoryStoreLib } from "src/libraries/FactoryStore.sol";
 import { MathUtils } from "src/libraries/MathUtils.sol";
-import { EulerV2Manager, IAssetManager, IERC4626 } from "src/asset-management/EulerV2Manager.sol";
+import { EulerV2Manager, IAssetManager, IERC4626, IDistributor } from "src/asset-management/EulerV2Manager.sol";
 import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
 import { IUSDC } from "test/interfaces/IUSDC.sol";
 import { ReturnAssetExploit } from "../__mocks/ReturnAssetExploit.sol";
@@ -24,6 +23,7 @@ struct Network {
     address USDC;
     address masterMinterUSDC;
     address USDCVault;
+    address merklDistributor;
 }
 
 struct Fork {
@@ -37,6 +37,8 @@ contract EulerIntegrationTest is BaseTest {
 
     event Guardian(address newGuardian);
     event Transfer(address from, address to, uint256 amount);
+
+    error TransferFailed();
 
     // this amount is tailored to USDC as it only has 6 decimal places
     // using the usual 100e18 would be too large and would break AAVE
@@ -53,7 +55,7 @@ contract EulerIntegrationTest is BaseTest {
     IERC20 private USDC;
     address private masterMinterUSDC;
     IERC4626 private USDCVault;
-    address private _aaveAdmin;
+    IDistributor private distributor;
 
     modifier allPairs() {
         for (uint256 i = 0; i < _pairs.length; ++i) {
@@ -94,6 +96,7 @@ contract EulerIntegrationTest is BaseTest {
         USDC = IERC20(aNetwork.USDC);
         masterMinterUSDC = aNetwork.masterMinterUSDC;
         USDCVault = IERC4626(aNetwork.USDCVault);
+        distributor = IDistributor(aNetwork.merklDistributor);
 
         _deal(address(USDC), address(this), MINT_AMOUNT);
         _constantProductPair = ConstantProductPair(_createPair(address(_tokenA), address(USDC), 0));
@@ -144,7 +147,8 @@ contract EulerIntegrationTest is BaseTest {
                 getChain("mainnet").rpcUrl,
                 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
                 0xE982615d461DD5cD06575BbeA87624fda4e3de17,
-                0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9 // Euler Prime USDC vault
+                0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9, // Euler Prime USDC vault
+                0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae
             )
         );
 
@@ -973,7 +977,63 @@ contract EulerIntegrationTest is BaseTest {
         lExploit.attack(_manager);
     }
 
-    function testClaimRewards() external allNetworks { }
+    function testClaimRewards() external allNetworks {
+        // arrange
+        // pin block to certain as it is before the user has claimed the reward
+        // this is kind of a replay of https://etherscan.io/tx/0x2cc0e0161f84594ff755b8aac235efcf8ce59c1f9d63655356d9d5f09021ef5f
+        vm.rollFork(21197813);
+        address lVaultUser = address(0x00236feEAC26ef92552e3981096350D136084C64);
+        uint256 lUSDCBalanceBefore = USDC.balanceOf(lVaultUser);
+        uint256 lClaimAmt = 361104571;
+        uint256 lActualAmt = 241316721;
+
+        vm.prank(lVaultUser);
+        distributor.toggleOperator(lVaultUser, address(_manager));
+
+        address[] memory lUsers = new address[](1);
+        lUsers[0] = lVaultUser;
+
+        address[] memory lTokens = new address[](1);
+        lTokens[0] = address(USDC);
+
+        uint256[] memory lAmounts = new uint256[](1);
+        lAmounts[0] = lClaimAmt;
+
+        bytes32[][] memory lProofs = new bytes32[][](1);
+        lProofs[0] = new bytes32[](14);
+        lProofs[0][0] = 0xa9f5986cf9ba92e165a2422369577d29f776b2875b5675602e9e5f9df2ab7c7e;
+        lProofs[0][1] = 0xbeaad48efe95eae938e5f48dd8cbad91bd2036dbab85ed913d5581e43a669884;
+        lProofs[0][2] = 0xc8f64af9c4e202af243b02031900bccb59db3fb1ae7f7b6ef841539a27a89ccc;
+        lProofs[0][3] = 0x5531d033f9e3ce60f1817f1121e6958d34970d41469aa34d72d5825efc54fbf4;
+        lProofs[0][4] = 0x0d5a061463b6c619edaa4b88d8778565df55c30bb9cfcb0ee5e5b2947a6ecdd7;
+        lProofs[0][5] = 0x83f3d530fbaa326a08b31e5d1418565ea6de97f93f26acab480f537cf159c63f;
+        lProofs[0][6] = 0x423985ac01da6043a6e733135aa92b329528cc675c83b1de799b90d1061a3447;
+        lProofs[0][7] = 0xfa65c6be585dd9b00347ef1a466d0bddcd16a84291d5c802882cbd51b6287dfb;
+        lProofs[0][8] = 0x1f6dc43d4aacf37a7518a74d30b9abc3be28ab635485624a05201faff3d19ed7;
+        lProofs[0][9] = 0x313bbbf9afd06d8f9e6754362938910ac15b5f17094cbec219e920b5304c3424;
+        lProofs[0][10] = 0xceb058ef80e60f5868b3bfab410745217f303f7deaf4d37b4d865cc2378230f7;
+        lProofs[0][11] = 0x9dd8679648e25847e3e4ec095dfb009624aeea68e8d5b74808e0d1115ea6834f;
+        lProofs[0][12] = 0x90d5dc0ac9e6118eba554513548f3e5a2573d3eb77efe4b9f12dc57aa0bdab53;
+        lProofs[0][13] = 0x0e81697f68dcbd6ed96fed3a63ddc140edb0de2ef18d9611104ae80ae0b759c7;
+
+        // since all claims go to the actual user regardless of who claimed it
+        // we are unable to get the claimed tokens into the asset manager
+        // therefore we simulate it by dealing it the correct amount
+        _deal(address(USDC), address(_manager), lActualAmt);
+
+        // act & assert
+        _manager.claimRewards(
+            distributor,
+            lUsers,
+            lTokens,
+            lAmounts,
+            lProofs
+        );
+
+        // assert
+        assertEq(USDC.balanceOf(address(this)), lActualAmt);
+        assertEq(USDC.balanceOf(lVaultUser) - lUSDCBalanceBefore, lActualAmt);
+    }
 
     function testDistributeRewardForPairs(
         uint256 aAmountToDistribute,

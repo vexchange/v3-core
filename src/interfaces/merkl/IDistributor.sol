@@ -9,4 +9,6 @@ interface IDistributor {
         uint256[] calldata amounts,
         bytes32[][] calldata proofs
     ) external;
+
+    function toggleOperator(address user, address operator) external;
 }

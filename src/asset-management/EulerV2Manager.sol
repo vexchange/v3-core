@@ -108,16 +108,12 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
                                 HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
-    function _increaseShares(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aShares)
-        private
-    {
+    function _increaseShares(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aShares) private {
         totalShares[aVault] += aShares;
         shares[aPair][aToken] += aShares;
     }
 
-    function _decreaseShares(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aShares)
-        private
-    {
+    function _decreaseShares(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aShares) private {
         totalShares[aVault] -= aShares;
         shares[aPair][aToken] -= aShares;
     }
@@ -277,11 +273,16 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         aDistributor.claim(aUsers, aTokens, aAmounts, aProofs);
 
         for (uint256 i = 0; i < aTokens.length; ++i) {
-            SafeTransferLib.safeTransfer(aTokens[i], msg.sender, aAmounts[i]);
+            SafeTransferLib.safeTransfer(
+                aTokens[i],
+                msg.sender,
+                // the amounts specified in the argument might not be the actual amounts disimbursed by the distributor, due to the possibility of having done the claim previously
+                // thus it is necessary to use balanceOf to transfer the correct amount
+                IERC20(aTokens[i]).balanceOf(address(this)));
         }
     }
 
-    /// @dev The guardian or owner would first claim rewards on behalf of the asset manager by calling `claimRewards` and sell it for the underlying token.
+    /// @dev The guardian or owner would first call `claimRewards` and sell it for the underlying token.
     /// The asset manager pulls the assets, deposits it to the vault, and distribute the proceeds in the form of ERC4626 shares to the pairs.
     /// Due to integer arithmetic the last pair of the array will get one or two more shares, so as to maintain the invariant that
     /// the sum of shares for all pair+token equals the totalShares.
