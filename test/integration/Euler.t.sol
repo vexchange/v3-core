@@ -5,11 +5,6 @@ import "test/__fixtures/BaseTest.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 
 import { IAssetManagedPair } from "src/interfaces/IAssetManagedPair.sol";
-import { IPool } from "src/interfaces/aave/IPool.sol";
-import { IAaveProtocolDataProvider } from "src/interfaces/aave/IAaveProtocolDataProvider.sol";
-import { IPoolAddressesProvider } from "src/interfaces/aave/IPoolAddressesProvider.sol";
-import { IPoolConfigurator } from "src/interfaces/aave/IPoolConfigurator.sol";
-import { IRewardsController } from "src/interfaces/aave/IRewardsController.sol";
 
 import { FactoryStoreLib } from "src/libraries/FactoryStore.sol";
 import { MathUtils } from "src/libraries/MathUtils.sol";
@@ -981,11 +976,11 @@ contract EulerIntegrationTest is BaseTest {
         // arrange
         // pin block to certain as it is before the user has claimed the reward
         // this is kind of a replay of https://etherscan.io/tx/0x2cc0e0161f84594ff755b8aac235efcf8ce59c1f9d63655356d9d5f09021ef5f
-        vm.rollFork(21197813);
+        vm.rollFork(21_197_813);
         address lVaultUser = address(0x00236feEAC26ef92552e3981096350D136084C64);
         uint256 lUSDCBalanceBefore = USDC.balanceOf(lVaultUser);
-        uint256 lClaimAmt = 361104571;
-        uint256 lActualAmt = 241316721;
+        uint256 lClaimAmt = 361_104_571;
+        uint256 lActualAmt = 241_316_721;
 
         vm.prank(lVaultUser);
         distributor.toggleOperator(lVaultUser, address(_manager));
@@ -1022,13 +1017,7 @@ contract EulerIntegrationTest is BaseTest {
         _deal(address(USDC), address(_manager), lActualAmt);
 
         // act & assert
-        _manager.claimRewards(
-            distributor,
-            lUsers,
-            lTokens,
-            lAmounts,
-            lProofs
-        );
+        _manager.claimRewards(distributor, lUsers, lTokens, lAmounts, lProofs);
 
         // assert
         assertEq(USDC.balanceOf(address(this)), lActualAmt);
@@ -1084,9 +1073,9 @@ contract EulerIntegrationTest is BaseTest {
         lPairs[0] = _pair;
         lPairs[1] = lPair2;
         lPairs[2] = lPair3;
-        uint256 lPairSharesBefore =_manager.shares(_pair, USDC);
-        uint256 lPair2SharesBefore =_manager.shares(lPair2, USDC);
-        uint256 lPair3SharesBefore =_manager.shares(lPair3, USDC);
+        uint256 lPairSharesBefore = _manager.shares(_pair, USDC);
+        uint256 lPair2SharesBefore = _manager.shares(lPair2, USDC);
+        uint256 lPair3SharesBefore = _manager.shares(lPair3, USDC);
 
         // act
         USDC.approve(address(_manager), lAmountToDistribute);
