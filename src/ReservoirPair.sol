@@ -50,7 +50,6 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
         if (aNotStableMintBurn) {
             updateSwapFee();
             updatePlatformFee();
-            updateOracleCaller();
             setClampParams(
                 factory.read(MAX_CHANGE_RATE_NAME).toUint128(), factory.read(MAX_CHANGE_PER_TRADE_NAME).toUint128()
             );
@@ -517,7 +516,6 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
 
     //////////////////////////////////////////////////////////////////////////*/
 
-    event OracleCallerUpdated(address oldCaller, address newCaller);
     event ClampParamsUpdated(uint128 newMaxChangeRatePerSecond, uint128 newMaxChangePerTrade);
 
     // 1% per second which is 60% per minute
@@ -526,30 +524,18 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
     uint256 internal constant MAX_CHANGE_PER_TRADE = 0.1e18;
     string internal constant MAX_CHANGE_RATE_NAME = "Shared::maxChangeRate";
     string internal constant MAX_CHANGE_PER_TRADE_NAME = "Shared::maxChangePerTrade";
-    string internal constant ORACLE_CALLER_NAME = "Shared::oracleCaller";
 
-    mapping(uint256 => Observation) internal _observations;
+    mapping(uint256 => Observation) public _observations;
+
+    function observation(uint256 aIndex) external view returns (Observation memory) {
+        return _observations[aIndex];
+    }
 
     // maximum allowed rate of change of price per second to mitigate oracle manipulation attacks in the face of
     // post-merge ETH. 1e18 == 100%
     uint128 public maxChangeRate;
     // how much the clamped price can move within one trade. 1e18 == 100%
     uint128 public maxChangePerTrade;
-
-    address public oracleCaller;
-
-    function observation(uint256 aIndex) external view returns (Observation memory rObservation) {
-        require(msg.sender == oracleCaller, "RP: NOT_ORACLE_CALLER");
-        rObservation = _observations[aIndex];
-    }
-
-    function updateOracleCaller() public {
-        address lNewCaller = factory.read(ORACLE_CALLER_NAME).toAddress();
-        if (lNewCaller != oracleCaller) {
-            emit OracleCallerUpdated(oracleCaller, lNewCaller);
-            oracleCaller = lNewCaller;
-        }
-    }
 
     function setClampParams(uint128 aMaxChangeRate, uint128 aMaxChangePerTrade) public onlyFactory {
         require(0 < aMaxChangeRate && aMaxChangeRate <= MAX_CHANGE_PER_SEC, "RP: INVALID_CHANGE_PER_SECOND");

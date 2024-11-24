@@ -1447,9 +1447,9 @@ contract StablePairTest is BaseTest {
         lPair.sync();
 
         // assert
-        Observation memory lObs0 = _oracleCaller.observation(lPair, 0);
-        Observation memory lObs1 = _oracleCaller.observation(lPair, 1);
-        Observation memory lObs2 = _oracleCaller.observation(lPair, 2);
+        Observation memory lObs0 = lPair.observation(0);
+        Observation memory lObs1 = lPair.observation(1);
+        Observation memory lObs2 = lPair.observation(2);
 
         assertApproxEqRel(
             LogCompression.fromLowResLog(
@@ -1504,9 +1504,9 @@ contract StablePairTest is BaseTest {
         lPair.sync(); // obs2 is written here
 
         // assert
-        Observation memory lObs0 = _oracleCaller.observation(lPair, 0);
-        Observation memory lObs1 = _oracleCaller.observation(lPair, 1);
-        Observation memory lObs2 = _oracleCaller.observation(lPair, 2);
+        Observation memory lObs0 = lPair.observation(0);
+        Observation memory lObs1 = lPair.observation(1);
+        Observation memory lObs2 = lPair.observation(2);
 
         assertEq(lObs0.logAccRawPrice, LogCompression.toLowResLog(1e18) * 10, "1");
         assertEq(
@@ -1567,7 +1567,7 @@ contract StablePairTest is BaseTest {
         _stablePair.sync();
 
         // assert
-        Observation memory lObs1 = _oracleCaller.observation(_stablePair, 1);
+        Observation memory lObs1 = _stablePair.observation(1);
         // no diff between raw and clamped prices
         assertEq(lObs1.logAccClampedPrice, lObs1.logAccRawPrice);
         assertEq(lObs1.logInstantClampedPrice, lObs1.logInstantRawPrice);

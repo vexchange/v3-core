@@ -8,7 +8,6 @@ import { MintableERC20 } from "test/__fixtures/MintableERC20.sol";
 import { FactoryStoreLib } from "src/libraries/FactoryStore.sol";
 import { Create2Lib } from "src/libraries/Create2Lib.sol";
 import { Constants } from "src/Constants.sol";
-import { OracleCaller } from "src/oracle/OracleCaller.sol";
 
 import { ReservoirDeployer } from "src/ReservoirDeployer.sol";
 import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
@@ -39,8 +38,6 @@ abstract contract BaseTest is Test {
     ConstantProductPair internal _constantProductPair;
     StablePair internal _stablePair;
 
-    OracleCaller internal _oracleCaller;
-
     modifier randomizeStartTime(uint32 aNewStartTime) {
         vm.assume(aNewStartTime > 1);
 
@@ -61,16 +58,11 @@ abstract contract BaseTest is Test {
         _factory = _deployer.deployFactory(type(GenericFactory).creationCode);
         _deployer.deployConstantProduct(type(ConstantProductPair).creationCode);
         _deployer.deployStable(type(StablePair).creationCode);
-        _oracleCaller = _deployer.deployOracleCaller(type(OracleCaller).creationCode);
 
         // Claim ownership of all contracts for our test contract.
         _deployer.proposeOwner(address(this));
         _deployer.claimOwnership();
         _deployer.claimFactory();
-        _deployer.claimOracleCaller();
-
-        // Whitelist our test contract to call the oracle.
-        _oracleCaller.whitelistAddress(address(this), true);
 
         // Setup default ConstantProductPair.
         _constantProductPair = ConstantProductPair(_createPair(address(_tokenA), address(_tokenB), 0));
@@ -90,9 +82,7 @@ abstract contract BaseTest is Test {
 
         vm.serializeBytes32(lObjectKey, "factory_hash", keccak256(type(GenericFactory).creationCode));
         vm.serializeBytes32(lObjectKey, "constant_product_hash", keccak256(type(ConstantProductPair).creationCode));
-        vm.serializeBytes32(lObjectKey, "stable_hash", keccak256(type(StablePair).creationCode));
-        rDeployerMetadata =
-            vm.serializeBytes32(lObjectKey, "oracle_caller_hash", keccak256(type(OracleCaller).creationCode));
+        rDeployerMetadata = vm.serializeBytes32(lObjectKey, "stable_hash", keccak256(type(StablePair).creationCode));
     }
 
     function _ensureDeployerExists() internal returns (ReservoirDeployer rDeployer) {
@@ -146,10 +136,10 @@ abstract contract BaseTest is Test {
         );
 
         vm.record();
-        _oracleCaller.observation(aPair, aIndex);
+        aPair.observation(aIndex);
         (bytes32[] memory lAccesses,) = vm.accesses(address(aPair));
-        require(lAccesses.length == 2, "invalid number of accesses");
+        require(lAccesses.length == 1, "invalid number of accesses");
 
-        vm.store(address(aPair), lAccesses[1], lEncoded);
+        vm.store(address(aPair), lAccesses[0], lEncoded);
     }
 }

@@ -10,7 +10,6 @@ import { FactoryStoreLib } from "src/libraries/FactoryStore.sol";
 import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
 import { ConstantProductPair } from "src/curve/constant-product/ConstantProductPair.sol";
 import { StablePair } from "src/curve/stable/StablePair.sol";
-import { OracleCaller } from "src/oracle/OracleCaller.sol";
 
 contract VaultScript is BaseScript {
     using FactoryStoreLib for GenericFactory;
@@ -22,7 +21,6 @@ contract VaultScript is BaseScript {
     address internal _platformFeeTo = _makeAddress("platformFeeTo");
 
     GenericFactory internal _factory;
-    OracleCaller private _oracleCaller;
 
     uint256 private _privateKey = vm.envUint("TEST_PRIVATE_KEY");
     address private _wallet = vm.rememberKey(_privateKey);
@@ -53,16 +51,11 @@ contract VaultScript is BaseScript {
         _factory = _deployer.deployFactory(type(GenericFactory).creationCode);
         _deployer.deployConstantProduct(type(ConstantProductPair).creationCode);
         _deployer.deployStable(type(StablePair).creationCode);
-        _oracleCaller = _deployer.deployOracleCaller(type(OracleCaller).creationCode);
 
         // Claim ownership of all contracts for our test contract.
         _deployer.proposeOwner(msg.sender);
         _deployer.claimOwnership();
         _deployer.claimFactory();
-        _deployer.claimOracleCaller();
-
-        // Whitelist our test contract to call the oracle.
-        _oracleCaller.whitelistAddress(address(this), true);
 
         _factory.createPair(IERC20(address(_usdt)), IERC20(address(_usdc)), 0);
         _factory.createPair(IERC20(address(_usdt)), IERC20(address(_usdc)), 1);
