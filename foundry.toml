@@ -32,7 +32,7 @@ runs = 10_000
 
 [fmt]
 bracket_spacing   = true
-wrap_comments     = false
+wrap_comments     = true
 number_underscore = "thousands"
 int_types         = "long"
 

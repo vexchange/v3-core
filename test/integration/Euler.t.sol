@@ -975,7 +975,8 @@ contract EulerIntegrationTest is BaseTest {
     function testClaimRewards() external allNetworks {
         // arrange
         // pin block to certain as it is before the user has claimed the reward
-        // this is kind of a replay of https://etherscan.io/tx/0x2cc0e0161f84594ff755b8aac235efcf8ce59c1f9d63655356d9d5f09021ef5f
+        // this is a replay of
+        // https://etherscan.io/tx/0x2cc0e0161f84594ff755b8aac235efcf8ce59c1f9d63655356d9d5f09021ef5f
         vm.rollFork(21_197_813);
         address lVaultUser = address(0x00236feEAC26ef92552e3981096350D136084C64);
         uint256 lUSDCBalanceBefore = USDC.balanceOf(lVaultUser);

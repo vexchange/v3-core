@@ -27,9 +27,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     error OutstandingSharesForVault();
 
     /// @dev Mapping from an ERC20 token to an Euler V2 vault.
-    /// This implies that for a given asset, there can only be one vault.
-    /// If the admin of the manager wishes to specify a different vault for an asset, they would have to manually ensure that all pairs have
-    /// divested, otherwise the pairs might not be able to retrieve their assets.
+    /// This implies that for a given asset, there can only be one vault at any one time.
     mapping(IERC20 => IERC4626) public assetVault;
 
     /// @dev Tracks how many shares each pair+token owns.
@@ -276,17 +274,19 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
             SafeTransferLib.safeTransfer(
                 aTokens[i],
                 msg.sender,
-                // the amounts specified in the argument might not be the actual amounts disimbursed by the distributor, due to the possibility of having done the claim previously
-                // thus it is necessary to use balanceOf to transfer the correct amount
+                // the amounts specified in the argument might not be the actual amounts disimbursed by the distributor,
+                // due to the possibility of having done the claim previously thus it is necessary to use balanceOf
+                // to transfer the correct amount
                 IERC20(aTokens[i]).balanceOf(address(this))
             );
         }
     }
 
     /// @dev The guardian or owner would first call `claimRewards` and sell it for the underlying token.
-    /// The asset manager pulls the assets, deposits it to the vault, and distribute the proceeds in the form of ERC4626 shares to the pairs.
-    /// Due to integer arithmetic the last pair of the array will get one or two more shares, so as to maintain the invariant that
-    /// the sum of shares for all pair+token equals the totalShares.
+    /// The asset manager pulls the assets, deposits it to the vault, and distribute the proceeds in the form of ERC4626
+    /// shares to the pairs.
+    /// Due to integer arithmetic the last pair of the array will get one or two more shares, so as to maintain the
+    /// invariant that the sum of shares for all pair+token equals the totalShares.
     function distributeRewardForPairs(IERC20 aAsset, uint256 aAmount, IAssetManagedPair[] calldata aPairs)
         external
         onlyGuardianOrOwner
@@ -305,14 +305,15 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         uint256 lLength = aPairs.length;
         for (uint256 i = 0; i < lLength - 1; ++i) {
             uint256 lOldShares = shares[aPairs[i]][aAsset];
-            // no need for fullMulDiv for real life amounts, assumes that lOldTotalShares != 0, which would be the case if there are pairs to distribute to anyway
+            // no need for fullMulDiv for real life amounts, assumes that lOldTotalShares != 0, which would be the case
+            // if there are pairs to distribute to anyway
             uint256 lNewSharesEntitled = lNewShares.mulDiv(lOldShares, lOldTotalShares);
             shares[aPairs[i]][aAsset] = lOldShares + lNewSharesEntitled;
             lSharesAllocated += lNewSharesEntitled;
         }
 
-        // the last in the list will take all the remaining shares, and sometimes will get 1 or 2 more than they're entitled to
-        // due to the rounding down in previous calculations for other pairs
+        // the last in the list will take all the remaining shares, and sometimes will get 1 or 2 more than they're
+        // entitled to due to the rounding down in previous calculations for other pairs
         // this is to prevent the sum of each pair+token's shares not summing up to totalShares
         uint256 lSharesForLastPair = lNewShares - lSharesAllocated;
 
