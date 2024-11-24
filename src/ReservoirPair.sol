@@ -163,7 +163,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
             // both balance should never be zero, but necessary to check so we don't pass 0 values into arithmetic operations
             // shortcut to calculate aBalance0 > 0 && aBalance1 > 0
             if (aBalance0 * aBalance1 > 0) {
-                Observation storage lPrevious = observations[sSlot0.index];
+                Observation storage lPrevious = _observations[sSlot0.index];
                 (uint256 lInstantRawPrice, int256 lLogInstantRawPrice) = _calcSpotAndLogPrice(aBalance0, aBalance1);
 
                 // a new sample is not written for the first mint
@@ -525,7 +525,11 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
     string internal constant MAX_CHANGE_RATE_NAME = "Shared::maxChangeRate";
     string internal constant MAX_CHANGE_PER_TRADE_NAME = "Shared::maxChangePerTrade";
 
-    mapping(uint256 => Observation) public observations;
+    mapping(uint256 => Observation) public _observations;
+
+    function observation(uint256 aIndex) external view returns (Observation memory) {
+        return _observations[aIndex];
+    }
 
     // maximum allowed rate of change of price per second to mitigate oracle manipulation attacks in the face of
     // post-merge ETH. 1e18 == 100%
@@ -593,7 +597,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
             int88 logAccClampedPrice =
                 aPrevious.logAccClampedPrice + aPrevious.logInstantClampedPrice * int88(int256(uint256(aTimeElapsed)));
             aSlot0.index = aSlot0.index.next();
-            observations[aSlot0.index] = Observation(
+            _observations[aSlot0.index] = Observation(
                 int24(aLogInstantRawPrice),
                 int24(aLogInstantClampedPrice),
                 logAccRawPrice,

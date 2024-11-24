@@ -68,14 +68,14 @@ contract OracleWriterTest is BaseTest {
         (,,, uint16 lIndex) = _pair.getReserves();
         assertEq(lIndex, 1);
 
-        Observation memory lObs = _pair.observation(_pair, 0);
+        Observation memory lObs = _pair.observation(0);
         assertEq(lObs.logAccRawPrice, 0);
         assertEq(lObs.logAccClampedPrice, 0);
         assertNotEq(lObs.logInstantRawPrice, 0);
         assertNotEq(lObs.logInstantClampedPrice, 0);
         assertNotEq(lObs.timestamp, 0);
 
-        lObs = _pair.observations(_pair, 1);
+        lObs = _pair.observation(1);
         assertNotEq(lObs.logAccRawPrice, 0);
         assertNotEq(lObs.logAccClampedPrice, 0);
         assertNotEq(lObs.logInstantRawPrice, 0);
@@ -86,14 +86,14 @@ contract OracleWriterTest is BaseTest {
         _writeObservation(_pair, 0, int24(123), int24(-456), int88(789), int56(-1011), uint32(666));
 
         // assert
-        lObs = _pair.observations(_pair, 0);
+        lObs = _pair.observation(0);
         assertEq(lObs.logInstantRawPrice, int24(123));
         assertEq(lObs.logInstantClampedPrice, int24(-456));
         assertEq(lObs.logAccRawPrice, int88(789));
         assertEq(lObs.logAccClampedPrice, int88(-1011));
         assertEq(lObs.timestamp, uint32(666));
 
-        lObs = _pair.observations(_pair, 1);
+        lObs = _pair.observation(1);
         assertNotEq(lObs.logAccRawPrice, 0);
         assertNotEq(lObs.logAccClampedPrice, 0);
         assertNotEq(lObs.timestamp, 0);
@@ -161,7 +161,7 @@ contract OracleWriterTest is BaseTest {
 
         // sanity
         (,,, uint16 lIndex) = _pair.getReserves();
-        Observation memory lObs = _pair.observations(_pair, lIndex);
+        Observation memory lObs = _pair.observation(lIndex);
         assertEq(lIndex, Buffer.SIZE - 1);
         assertEq(LogCompression.fromLowResLog(lObs.logInstantRawPrice), lOriginalPrice, "instant 1");
 
@@ -171,7 +171,7 @@ contract OracleWriterTest is BaseTest {
 
         // assert
         (,,, lIndex) = _pair.getReserves();
-        lObs = _pair.observations(_pair, lIndex);
+        lObs = _pair.observation(lIndex);
 
         assertEq(lIndex, Buffer.SIZE - 1);
         assertNotEq(LogCompression.fromLowResLog(lObs.logInstantRawPrice), lOriginalPrice);
@@ -196,19 +196,19 @@ contract OracleWriterTest is BaseTest {
         // sanity - observation after first swap
         (,,, uint16 lIndex) = _pair.getReserves();
         assertEq(lIndex, 0);
-        Observation memory lObs0 = _pair.observations(_pair, lIndex);
+        Observation memory lObs0 = _pair.observation(lIndex);
 
         // second swap
         _tokenA.mint(address(_pair), lSwapAmt);
         _pair.swap(int256(lSwapAmt), true, address(this), "");
 
-        Observation memory lObs1 = _pair.observations(_pair, lIndex);
+        Observation memory lObs1 = _pair.observation(lIndex);
 
         // third swap
         _tokenA.mint(address(_pair), lSwapAmt);
         _pair.swap(int256(lSwapAmt), true, address(this), "");
 
-        Observation memory lObs2 = _pair.observations(_pair, lIndex);
+        Observation memory lObs2 = _pair.observation(lIndex);
 
         // assert
         assertEq(lObs0.timestamp, lObs1.timestamp);
@@ -236,7 +236,7 @@ contract OracleWriterTest is BaseTest {
         // assert - make sure that the accumulator accumulated with the previous prices, not the new prices
         (uint256 lNewReserve0,,, uint16 lIndex) = _pair.getReserves();
 
-        Observation memory lObs = _pair.observations(_pair, lIndex);
+        Observation memory lObs = _pair.observation(lIndex);
         assertEq(lNewReserve0, 110e18);
         assertApproxEqRel(
             LogCompression.fromLowResLog(lObs.logAccRawPrice / int88(int256(lJumpAhead))), lOriginalPrice, 0.0001e18
@@ -257,7 +257,7 @@ contract OracleWriterTest is BaseTest {
 
         // assert
         (,,, uint16 lIndex) = _pair.getReserves();
-        Observation memory lObs = _pair.observations(_pair, lIndex);
+        Observation memory lObs = _pair.observation(lIndex);
         assertEq(lObs.timestamp, lStartingTimestamp + lJumpAhead);
     }
 
@@ -274,7 +274,7 @@ contract OracleWriterTest is BaseTest {
         // assert - since the max change rate is useless price given the long time elapsed
         // the clamped price should only be limited by the max change per trade
         (,,, uint16 lIndex) = _pair.getReserves();
-        Observation memory lObs = _pair.observations(_pair, lIndex);
+        Observation memory lObs = _pair.observation(lIndex);
         uint256 lMaxChangePerTrade = _pair.maxChangePerTrade();
         assertApproxEqRel(
             LogCompression.fromLowResLog(lObs.logInstantClampedPrice),
@@ -298,7 +298,7 @@ contract OracleWriterTest is BaseTest {
 
         // assert
         (,,, uint16 lIndex) = _pair.getReserves();
-        Observation memory lObs = _pair.observations(_pair, lIndex);
+        Observation memory lObs = _pair.observation(lIndex);
         uint256 lMaxChangeRate = _pair.maxChangeRate();
         assertApproxEqRel(
             LogCompression.fromLowResLog(lObs.logInstantClampedPrice),
@@ -321,7 +321,7 @@ contract OracleWriterTest is BaseTest {
 
         // assert
         (,,, uint16 lIndex) = _pair.getReserves();
-        Observation memory lObs = _pair.observations(_pair, lIndex);
+        Observation memory lObs = _pair.observation(lIndex);
         uint256 lMaxChangePerTrade = _pair.maxChangePerTrade();
         assertApproxEqRel(
             LogCompression.fromLowResLog(lObs.logInstantClampedPrice),
@@ -343,7 +343,7 @@ contract OracleWriterTest is BaseTest {
 
         // assert
         (,,, uint16 lIndex) = _pair.getReserves();
-        Observation memory lObs = _pair.observations(_pair, lIndex);
+        Observation memory lObs = _pair.observation(lIndex);
         uint256 lMaxChangeRate = _pair.maxChangeRate();
         uint256 lMaxChangePerTrade = _pair.maxChangePerTrade();
 
@@ -377,8 +377,8 @@ contract OracleWriterTest is BaseTest {
         lSP.sync();
 
         // assert
-        Observation memory lObsCP1 = _pair.observations(lCP, 1);
-        Observation memory lObsSP1 = _pair.observations(lSP, 1);
+        Observation memory lObsCP1 = lCP.observation(1);
+        Observation memory lObsSP1 = lSP.observation(1);
         if (lCP.token0() == IERC20(address(_tokenB))) {
             assertGt(lObsSP1.logAccRawPrice, lObsCP1.logAccRawPrice);
         } else {
@@ -416,10 +416,10 @@ contract OracleWriterTest is BaseTest {
         assertEq(lIndex, 1);
 
         // assert
-        Observation memory lObs0CP = _pair.observations(lCP, 0);
-        Observation memory lObs1CP = _pair.observations(lCP, 1);
-        Observation memory lObs0SP = _pair.observations(lSP, 0);
-        Observation memory lObs1SP = _pair.observations(lSP, 1);
+        Observation memory lObs0CP = lCP.observation(0);
+        Observation memory lObs1CP = lCP.observation(1);
+        Observation memory lObs0SP = lSP.observation(0);
+        Observation memory lObs1SP = lSP.observation(1);
         uint256 lUncompressedPriceCP =
             LogCompression.fromLowResLog((lObs1CP.logAccRawPrice - lObs0CP.logAccRawPrice) / 12);
         uint256 lUncompressedPriceSP =
@@ -448,10 +448,10 @@ contract OracleWriterTest is BaseTest {
         _stepTime(12);
         lCP.sync();
         lSP.sync();
-        Observation memory lObsCP0 = _pair.observations(lCP, 0);
-        Observation memory lObsCP1 = _pair.observations(lCP, 1);
-        Observation memory lObsSP0 = _pair.observations(lSP, 0);
-        Observation memory lObsSP1 = _pair.observations(lSP, 1);
+        Observation memory lObsCP0 = lCP.observation(0);
+        Observation memory lObsCP1 = lCP.observation(1);
+        Observation memory lObsSP0 = lSP.observation(0);
+        Observation memory lObsSP1 = lSP.observation(1);
         uint256 lUncompressedPriceCP =
             LogCompression.fromLowResLog((lObsCP1.logAccRawPrice - lObsCP0.logAccRawPrice) / 12);
         uint256 lUncompressedPriceSP =
@@ -480,7 +480,7 @@ contract OracleWriterTest is BaseTest {
         // arrange - make the last observation close to overflowing
         (,,, uint16 lIndex) = _pair.getReserves();
         _writeObservation(_pair, lIndex, 1e3, 1e3, type(int88).max, type(int88).max, uint32(block.timestamp % 2 ** 31));
-        Observation memory lPrevObs = _pair.observations(_pair, lIndex);
+        Observation memory lPrevObs = _pair.observation(lIndex);
 
         // act
         uint256 lAmountToSwap = 5e18;
@@ -492,7 +492,7 @@ contract OracleWriterTest is BaseTest {
 
         // assert - when it overflows it goes from a very positive number to a very negative number
         (,,, lIndex) = _pair.getReserves();
-        Observation memory lCurrObs = _pair.observations(_pair, lIndex);
+        Observation memory lCurrObs = _pair.observation(lIndex);
         assertLt(lCurrObs.logAccRawPrice, lPrevObs.logAccRawPrice);
     }
 
@@ -511,7 +511,7 @@ contract OracleWriterTest is BaseTest {
 
         // sanity - instant price is 3M
         (,,, uint16 lIndex) = lCP.getReserves();
-        Observation memory lObs = _pair.observations(lCP, lIndex);
+        Observation memory lObs = lCP.observation(lIndex);
         assertApproxEqRel(LogCompression.fromLowResLog(lObs.logInstantClampedPrice), 3_000_000e18, 0.0001e18);
 
         // act - arbitrage happens that make the price go to around 3500 USD / ETH in one trade
@@ -526,7 +526,7 @@ contract OracleWriterTest is BaseTest {
 
         // the instant raw price now is at 3494 USD
         (,,, lIndex) = lCP.getReserves();
-        lObs = _pair.observations(lCP, lIndex);
+        lObs = lCP.observation(lIndex);
         assertApproxEqRel(LogCompression.fromLowResLog(lObs.logInstantRawPrice), 3494e18, 0.01e18);
         // but clamped price is at 2.98M
         assertApproxEqRel(LogCompression.fromLowResLog(lObs.logInstantClampedPrice), 2_984_969e18, 0.01e18);
@@ -535,7 +535,7 @@ contract OracleWriterTest is BaseTest {
             _stepTime(30);
             lCP.sync();
             (,,, lIndex) = lCP.getReserves();
-            lObs = _pair.observations(lCP, lIndex);
+            lObs = lCP.observation(lIndex);
         }
     }
 }

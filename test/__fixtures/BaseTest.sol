@@ -136,7 +136,7 @@ abstract contract BaseTest is Test {
         );
 
         vm.record();
-        aPair.observation(aPair, aIndex);
+        aPair.observation(aIndex);
         (bytes32[] memory lAccesses,) = vm.accesses(address(aPair));
         require(lAccesses.length == 2, "invalid number of accesses");
 
