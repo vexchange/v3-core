@@ -4,15 +4,12 @@ pragma solidity ^0.8.0;
 import { IReservoirCallee } from "src/interfaces/IReservoirCallee.sol";
 import { IGenericFactory } from "src/interfaces/IGenericFactory.sol";
 
+import { ReservoirPair, Slot0, IERC20 } from "src/ReservoirPair.sol";
+import { AmplificationData } from "src/structs/AmplificationData.sol";
 import { Bytes32Lib } from "src/libraries/Bytes32.sol";
 import { FactoryStoreLib } from "src/libraries/FactoryStore.sol";
-
-import { ReservoirPair, Slot0, Observation, IERC20 } from "src/ReservoirPair.sol";
 import { StableMath } from "src/libraries/StableMath.sol";
 import { StableOracleMath } from "src/libraries/StableOracleMath.sol";
-import { ConstantProductOracleMath } from "src/libraries/ConstantProductOracleMath.sol";
-
-import { AmplificationData } from "src/structs/AmplificationData.sol";
 
 contract StablePair is ReservoirPair {
     using FactoryStoreLib for IGenericFactory;
@@ -35,7 +32,7 @@ contract StablePair is ReservoirPair {
     uint64 public lastInvariantAmp;
 
     constructor(IERC20 aToken0, IERC20 aToken1)
-        ReservoirPair(aToken0, aToken1, PAIR_SWAP_FEE_NAME, _isStableMintBurn(aToken0, aToken1) ? false : true)
+        ReservoirPair(aToken0, aToken1, PAIR_SWAP_FEE_NAME, !_isStableMintBurn(aToken0, aToken1))
     {
         bool lIsStableMintBurn = _isStableMintBurn(aToken0, aToken1);
 
@@ -227,19 +224,6 @@ contract StablePair is ReservoirPair {
         );
     }
 
-    /// @notice Get D, the StableSwap invariant, based on a set of balances and a particular A.
-    /// See the StableSwap paper for details.
-    /// @dev Originally
-    /// https://github.com/saddle-finance/saddle-contract/blob/0b76f7fb519e34b878aa1d58cffc8d8dc0572c12/contracts/SwapUtils.sol#L319.
-    /// @return rLiquidity The invariant, at the precision of the pool.
-    function _computeLiquidity(uint256 aReserve0, uint256 aReserve1) internal view returns (uint256 rLiquidity) {
-        unchecked {
-            uint256 adjustedReserve0 = aReserve0 * token0PrecisionMultiplier();
-            uint256 adjustedReserve1 = aReserve1 * token1PrecisionMultiplier();
-            rLiquidity = StableMath._computeLiquidityFromAdjustedBalances(adjustedReserve0, adjustedReserve1, _getNA());
-        }
-    }
-
     function _getCurrentAPrecise() internal view returns (uint64 rCurrentA) {
         uint64 futureA = ampData.futureA;
         uint64 futureATime = ampData.futureATime;
@@ -279,29 +263,15 @@ contract StablePair is ReservoirPair {
                                 ORACLE METHODS
     //////////////////////////////////////////////////////////////////////////*/
 
-    function _updateOracle(uint256 aReserve0, uint256 aReserve1, uint32 aTimeElapsed, uint32 aCurrentTimestamp)
+    /// @inheritdoc ReservoirPair
+    function _calcSpotAndLogPrice(uint256 aBalance0, uint256 aBalance1)
         internal
+        view
         override
+        returns (uint256, int256)
     {
-        Observation storage previous = _observations[_slot0.index];
-
-        (uint256 currRawPrice, int112 currLogRawPrice) = StableOracleMath.calcLogPrice(
-            _getCurrentAPrecise(), aReserve0 * token0PrecisionMultiplier(), aReserve1 * token1PrecisionMultiplier()
+        return StableOracleMath.calcLogPrice(
+            _getCurrentAPrecise(), aBalance0 * token0PrecisionMultiplier(), aBalance1 * token1PrecisionMultiplier()
         );
-        (uint256 currClampedPrice, int112 currLogClampedPrice) =
-            _calcClampedPrice(currRawPrice, prevClampedPrice, aTimeElapsed);
-        int112 currLogLiq = ConstantProductOracleMath.calcLogLiq(aReserve0, aReserve1);
-        prevClampedPrice = currClampedPrice;
-
-        // overflow is desired here as the consumer of the oracle will be reading the difference in those accumulated log values
-        // when the index overflows it will overwrite the oldest observation to form a loop
-        unchecked {
-            int112 logAccRawPrice = previous.logAccRawPrice + currLogRawPrice * int112(int256(uint256(aTimeElapsed)));
-            int56 logAccClampedPrice =
-                previous.logAccClampedPrice + int56(currLogClampedPrice) * int56(int256(uint256(aTimeElapsed)));
-            int56 logAccLiq = previous.logAccLiquidity + int56(currLogLiq) * int56(int256(uint256(aTimeElapsed)));
-            _slot0.index += 1;
-            _observations[_slot0.index] = Observation(logAccRawPrice, logAccClampedPrice, logAccLiq, aCurrentTimestamp);
-        }
     }
 }

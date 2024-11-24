@@ -6,7 +6,6 @@ import "script/BaseScript.sol";
 import { GenericFactory } from "src/GenericFactory.sol";
 import { ConstantProductPair } from "src/curve/constant-product/ConstantProductPair.sol";
 import { StablePair } from "src/curve/stable/StablePair.sol";
-import { OracleCaller } from "src/oracle/OracleCaller.sol";
 
 contract DeployScript is BaseScript {
     address internal _riley = 0x01569E14C2134d0b2e960654Cf47212e9cEc4bA9;
@@ -23,7 +22,6 @@ contract DeployScript is BaseScript {
         _deployer.deployFactory(type(GenericFactory).creationCode);
         _deployer.deployConstantProduct(type(ConstantProductPair).creationCode);
         _deployer.deployStable(type(StablePair).creationCode);
-        _deployer.deployOracleCaller(type(OracleCaller).creationCode);
         vm.stopBroadcast();
 
         require(_deployer.guardian1() == _riley);

@@ -71,7 +71,7 @@ contract ConstantProductMathTest is BaseTest {
         uint256 lReserve0 = bound(aReserve1, lReserve1 * 1e18, type(uint104).max);
 
         // act
-        (, int112 lLogPrice) = ConstantProductOracleMath.calcLogPrice(lReserve0, lReserve1);
+        (, int256 lLogPrice) = ConstantProductOracleMath.calcLogPrice(lReserve0, lReserve1);
 
         // assert
         assertEq(lLogPrice, LogCompression.toLowResLog(1));

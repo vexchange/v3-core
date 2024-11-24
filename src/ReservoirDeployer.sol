@@ -6,27 +6,23 @@ import { Address } from "@openzeppelin/utils/Address.sol";
 import { FactoryStoreLib } from "src/libraries/FactoryStore.sol";
 import { Constants } from "src/Constants.sol";
 
-import { OracleCaller } from "src/oracle/OracleCaller.sol";
 import { GenericFactory } from "src/GenericFactory.sol";
 
 contract ReservoirDeployer {
     using FactoryStoreLib for GenericFactory;
 
     // Steps.
-    uint256 public constant TERMINAL_STEP = 4;
+    uint256 public constant TERMINAL_STEP = 3;
     uint256 public step = 0;
 
     // Bytecode hashes.
-    bytes32 public constant FACTORY_HASH = bytes32(0x17febc039446d6858c3c0977ce47bd73b0a088c27037bc9d57c2755dc2ec6632);
+    bytes32 public constant FACTORY_HASH = bytes32(0x419250835880ba2bbc5535e1a66eae6c96005200131467f2033d5ca0b2e333a7);
     bytes32 public constant CONSTANT_PRODUCT_HASH =
-        bytes32(0xc71cecbc0e1d1f469238240af364b1e630c26ba1fc642f8a3fd21c0e52daf1e9);
-    bytes32 public constant STABLE_HASH = bytes32(0xcb74036cb3dce8a651e27facc0e4bf8c4aa7f97a44773689ed075209699edc51);
-    bytes32 public constant ORACLE_CALLER_HASH =
-        bytes32(0x620d9bad49990a6cc26a8d0f8054c912c21868feaff000970fd42da4852c5cb1);
+        bytes32(0xe3022cd6d0397e990bc6eb954dcf917dc7779bc75cf3ccb827e3361af8e4a4da);
+    bytes32 public constant STABLE_HASH = bytes32(0xfd70a1442e2709a6d366103eaf2f111bb1ffeff0b29e1ee5829165b55e4be32e);
 
     // Deployment addresses.
     GenericFactory public factory;
-    OracleCaller public oracleCaller;
 
     constructor(address aGuardian1, address aGuardian2, address aGuardian3) {
         require(
@@ -70,6 +66,7 @@ contract ReservoirDeployer {
         factory.write("Shared::platformFeeTo", address(this));
         factory.write("Shared::recoverer", address(this));
         factory.write("Shared::maxChangeRate", Constants.DEFAULT_MAX_CHANGE_RATE);
+        factory.write("Shared::maxChangePerTrade", Constants.DEFAULT_MAX_CHANGE_PER_TRADE);
 
         // Step complete.
         step += 1;
@@ -100,31 +97,6 @@ contract ReservoirDeployer {
 
         // Step complete.
         step += 1;
-    }
-
-    function deployOracleCaller(bytes memory aOracleCallerBytecode) external returns (OracleCaller) {
-        require(step == 3, "OC_STEP: OUT_OF_ORDER");
-        require(keccak256(aOracleCallerBytecode) == ORACLE_CALLER_HASH, "DEPLOYER: OC_HASH");
-
-        // Manual deployment from validated bytecode.
-        address lOracleCallerAddress;
-        assembly ("memory-safe") {
-            lOracleCallerAddress :=
-                create(
-                    0, // value
-                    add(aOracleCallerBytecode, 0x20), // offset
-                    mload(aOracleCallerBytecode) // size
-                )
-        }
-        require(lOracleCallerAddress != address(0), "OC_STEP: DEPLOYMENT_FAILED");
-
-        factory.write("Shared::oracleCaller", lOracleCallerAddress);
-
-        // Step complete.
-        oracleCaller = OracleCaller(lOracleCallerAddress);
-        step += 1;
-
-        return oracleCaller;
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -171,10 +143,6 @@ contract ReservoirDeployer {
 
     function claimFactory() external onlyOwner {
         factory.transferOwnership(msg.sender);
-    }
-
-    function claimOracleCaller() external onlyOwner {
-        oracleCaller.transferOwnership(msg.sender);
     }
 
     function rawCall(address aTarget, bytes calldata aCalldata, uint256 aValue)

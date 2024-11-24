@@ -8,14 +8,12 @@ import { MintableERC20 } from "test/__fixtures/MintableERC20.sol";
 import { FactoryStoreLib } from "src/libraries/FactoryStore.sol";
 import { Create2Lib } from "src/libraries/Create2Lib.sol";
 import { Constants } from "src/Constants.sol";
-import { OracleCaller } from "src/oracle/OracleCaller.sol";
 
 import { ReservoirDeployer } from "src/ReservoirDeployer.sol";
 import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
 import { ReservoirPair } from "src/ReservoirPair.sol";
 import { ConstantProductPair } from "src/curve/constant-product/ConstantProductPair.sol";
-import { StablePair, AmplificationData } from "src/curve/stable/StablePair.sol";
-import { StableMintBurn } from "src/curve/stable/StableMintBurn.sol";
+import { StablePair } from "src/curve/stable/StablePair.sol";
 
 // solhint-disable-next-line max-states-count
 abstract contract BaseTest is Test {
@@ -40,9 +38,9 @@ abstract contract BaseTest is Test {
     ConstantProductPair internal _constantProductPair;
     StablePair internal _stablePair;
 
-    OracleCaller internal _oracleCaller;
-
     modifier randomizeStartTime(uint32 aNewStartTime) {
+        vm.assume(aNewStartTime > 1);
+
         vm.warp(aNewStartTime);
         _;
     }
@@ -60,16 +58,11 @@ abstract contract BaseTest is Test {
         _factory = _deployer.deployFactory(type(GenericFactory).creationCode);
         _deployer.deployConstantProduct(type(ConstantProductPair).creationCode);
         _deployer.deployStable(type(StablePair).creationCode);
-        _oracleCaller = _deployer.deployOracleCaller(type(OracleCaller).creationCode);
 
         // Claim ownership of all contracts for our test contract.
         _deployer.proposeOwner(address(this));
         _deployer.claimOwnership();
         _deployer.claimFactory();
-        _deployer.claimOracleCaller();
-
-        // Whitelist our test contract to call the oracle.
-        _oracleCaller.whitelistAddress(address(this), true);
 
         // Setup default ConstantProductPair.
         _constantProductPair = ConstantProductPair(_createPair(address(_tokenA), address(_tokenB), 0));
@@ -89,9 +82,7 @@ abstract contract BaseTest is Test {
 
         vm.serializeBytes32(lObjectKey, "factory_hash", keccak256(type(GenericFactory).creationCode));
         vm.serializeBytes32(lObjectKey, "constant_product_hash", keccak256(type(ConstantProductPair).creationCode));
-        vm.serializeBytes32(lObjectKey, "stable_hash", keccak256(type(StablePair).creationCode));
-        rDeployerMetadata =
-            vm.serializeBytes32(lObjectKey, "oracle_caller_hash", keccak256(type(OracleCaller).creationCode));
+        rDeployerMetadata = vm.serializeBytes32(lObjectKey, "stable_hash", keccak256(type(StablePair).creationCode));
     }
 
     function _ensureDeployerExists() internal returns (ReservoirDeployer rDeployer) {
@@ -100,7 +91,7 @@ abstract contract BaseTest is Test {
         address lDeployer = Create2Lib.computeAddress(address(this), lInitCode, bytes32(0));
 
         if (lDeployer.code.length == 0) {
-            rDeployer = new ReservoirDeployer{salt: bytes32(0)}(address(this), address(this), address(this));
+            rDeployer = new ReservoirDeployer{ salt: bytes32(0) }(address(this), address(this), address(this));
             require(address(rDeployer) == lDeployer, "CREATE2 ADDRESS MISMATCH");
             require(address(rDeployer) != address(0), "DEPLOY FACTORY FAILED");
         } else {
@@ -127,23 +118,28 @@ abstract contract BaseTest is Test {
     function _writeObservation(
         ReservoirPair aPair,
         uint256 aIndex,
-        int112 aRawPrice,
-        int56 aClampedPrice,
-        int56 aLiq,
+        int24 aLogInstantRawPrice,
+        int24 aLogInstantClampedPrice,
+        int88 aLogAccRawPrice,
+        int88 aLogAccClampedPrice,
         uint32 aTime
     ) internal {
         require(aTime < 2 ** 31, "TIMESTAMP TOO BIG");
         bytes32 lEncoded = bytes32(
             bytes.concat(
-                bytes4(aTime), bytes7(uint56(aLiq)), bytes7(uint56(aClampedPrice)), bytes14(uint112(aRawPrice))
+                bytes4(aTime),
+                bytes11(uint88(aLogAccClampedPrice)),
+                bytes11(uint88(aLogAccRawPrice)),
+                bytes3(uint24(aLogInstantClampedPrice)),
+                bytes3(uint24(aLogInstantRawPrice))
             )
         );
 
         vm.record();
-        _oracleCaller.observation(aPair, aIndex);
+        aPair.observation(aIndex);
         (bytes32[] memory lAccesses,) = vm.accesses(address(aPair));
-        require(lAccesses.length == 2, "invalid number of accesses");
+        require(lAccesses.length == 1, "invalid number of accesses");
 
-        vm.store(address(aPair), lAccesses[1], lEncoded);
+        vm.store(address(aPair), lAccesses[0], lEncoded);
     }
 }

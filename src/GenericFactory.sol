@@ -19,7 +19,7 @@ contract GenericFactory is IGenericFactory, Owned {
     StableMintBurn public immutable stableMintBurn;
 
     constructor() Owned(msg.sender) {
-        stableMintBurn = new StableMintBurn{salt: bytes32(0)}();
+        stableMintBurn = new StableMintBurn{ salt: bytes32(0) }();
     }
 
     /*//////////////////////////////////////////////////////////////////////////
