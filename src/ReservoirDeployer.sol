@@ -6,14 +6,13 @@ import { Address } from "@openzeppelin/utils/Address.sol";
 import { FactoryStoreLib } from "src/libraries/FactoryStore.sol";
 import { Constants } from "src/Constants.sol";
 
-import { OracleCaller } from "src/oracle/OracleCaller.sol";
 import { GenericFactory } from "src/GenericFactory.sol";
 
 contract ReservoirDeployer {
     using FactoryStoreLib for GenericFactory;
 
     // Steps.
-    uint256 public constant TERMINAL_STEP = 4;
+    uint256 public constant TERMINAL_STEP = 3;
     uint256 public step = 0;
 
     // Bytecode hashes.
@@ -21,12 +20,9 @@ contract ReservoirDeployer {
     bytes32 public constant CONSTANT_PRODUCT_HASH =
         bytes32(0x9648a01d3a6113d80e9a5d5f18de0e7012f75a01484a95c828f3dcd35cfb22aa);
     bytes32 public constant STABLE_HASH = bytes32(0x20f50448f6a2819aa2013d691d7b091dcdef9caefd369ad6be2f47aa7d37be99);
-    bytes32 public constant ORACLE_CALLER_HASH =
-        bytes32(0x803c82dbd08939f65e45c0cea69820c1e909da1afcceb6775504084062bb0647);
 
     // Deployment addresses.
     GenericFactory public factory;
-    OracleCaller public oracleCaller;
 
     constructor(address aGuardian1, address aGuardian2, address aGuardian3) {
         require(
@@ -103,31 +99,6 @@ contract ReservoirDeployer {
         step += 1;
     }
 
-    function deployOracleCaller(bytes memory aOracleCallerBytecode) external returns (OracleCaller) {
-        require(step == 3, "OC_STEP: OUT_OF_ORDER");
-        require(keccak256(aOracleCallerBytecode) == ORACLE_CALLER_HASH, "DEPLOYER: OC_HASH");
-
-        // Manual deployment from validated bytecode.
-        address lOracleCallerAddress;
-        assembly ("memory-safe") {
-            lOracleCallerAddress :=
-                create(
-                    0, // value
-                    add(aOracleCallerBytecode, 0x20), // offset
-                    mload(aOracleCallerBytecode) // size
-                )
-        }
-        require(lOracleCallerAddress != address(0), "OC_STEP: DEPLOYMENT_FAILED");
-
-        factory.write("Shared::oracleCaller", lOracleCallerAddress);
-
-        // Step complete.
-        oracleCaller = OracleCaller(lOracleCallerAddress);
-        step += 1;
-
-        return oracleCaller;
-    }
-
     /*//////////////////////////////////////////////////////////////////////////
                             OWNERSHIP CLAIM
     //////////////////////////////////////////////////////////////////////////*/
@@ -172,10 +143,6 @@ contract ReservoirDeployer {
 
     function claimFactory() external onlyOwner {
         factory.transferOwnership(msg.sender);
-    }
-
-    function claimOracleCaller() external onlyOwner {
-        oracleCaller.transferOwnership(msg.sender);
     }
 
     function rawCall(address aTarget, bytes calldata aCalldata, uint256 aValue)
