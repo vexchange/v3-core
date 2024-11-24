@@ -82,7 +82,7 @@ abstract contract BaseTest is Test {
 
         vm.serializeBytes32(lObjectKey, "factory_hash", keccak256(type(GenericFactory).creationCode));
         vm.serializeBytes32(lObjectKey, "constant_product_hash", keccak256(type(ConstantProductPair).creationCode));
-        vm.serializeBytes32(lObjectKey, "stable_hash", keccak256(type(StablePair).creationCode));
+        rDeployerMetadata = vm.serializeBytes32(lObjectKey, "stable_hash", keccak256(type(StablePair).creationCode));
     }
 
     function _ensureDeployerExists() internal returns (ReservoirDeployer rDeployer) {
@@ -138,8 +138,8 @@ abstract contract BaseTest is Test {
         vm.record();
         aPair.observation(aIndex);
         (bytes32[] memory lAccesses,) = vm.accesses(address(aPair));
-        require(lAccesses.length == 2, "invalid number of accesses");
+        require(lAccesses.length == 1, "invalid number of accesses");
 
-        vm.store(address(aPair), lAccesses[1], lEncoded);
+        vm.store(address(aPair), lAccesses[0], lEncoded);
     }
 }
