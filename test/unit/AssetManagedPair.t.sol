@@ -14,10 +14,10 @@ contract AssetManagedPairTest is BaseTest {
 
     modifier allPairs() {
         for (uint256 i = 0; i < _pairs.length; ++i) {
-            uint256 lBefore = vm.snapshot();
+            uint256 lBefore = vm.snapshotState();
             _pair = _pairs[i];
             _;
-            vm.revertTo(lBefore);
+            require(vm.revertToStateAndDelete(lBefore));
         }
     }
 
@@ -263,11 +263,11 @@ contract AssetManagedPairTest is BaseTest {
 
         // arrange
         int256 lSwapAmt = 1e18;
-        uint256 lBefore = vm.snapshot();
+        uint256 lBefore = vm.snapshotState();
         _tokenA.mint(address(_pair), uint256(lSwapAmt));
         _pair.swap(lSwapAmt, true, address(this), "");
         uint256 lNoLossOutAmt = _tokenB.balanceOf(address(this));
-        vm.revertTo(lBefore);
+        require(vm.revertToStateAndDelete(lBefore));
 
         vm.prank(address(_factory));
         _pair.setManager(_manager);

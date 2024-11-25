@@ -54,20 +54,20 @@ contract EulerIntegrationTest is BaseTest {
 
     modifier allPairs() {
         for (uint256 i = 0; i < _pairs.length; ++i) {
-            uint256 lBefore = vm.snapshot();
+            uint256 lBefore = vm.snapshotState();
             _pair = _pairs[i];
             _;
-            vm.revertTo(lBefore);
+            require(vm.revertToStateAndDelete(lBefore));
         }
     }
 
     modifier allNetworks() {
         for (uint256 i = 0; i < _networks.length; ++i) {
-            uint256 lBefore = vm.snapshot();
+            uint256 lBefore = vm.snapshotState();
             Network memory lNetwork = _networks[i];
             _setupRPC(lNetwork);
             _;
-            vm.revertTo(lBefore);
+            require(vm.revertToStateAndDelete(lBefore));
         }
     }
 
