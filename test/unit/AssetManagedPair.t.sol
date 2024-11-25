@@ -17,7 +17,7 @@ contract AssetManagedPairTest is BaseTest {
             uint256 lBefore = vm.snapshotState();
             _pair = _pairs[i];
             _;
-            require(vm.revertToStateAndDelete(lBefore));
+            require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
         }
     }
 
@@ -267,7 +267,7 @@ contract AssetManagedPairTest is BaseTest {
         _tokenA.mint(address(_pair), uint256(lSwapAmt));
         _pair.swap(lSwapAmt, true, address(this), "");
         uint256 lNoLossOutAmt = _tokenB.balanceOf(address(this));
-        require(vm.revertToStateAndDelete(lBefore));
+        require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
 
         vm.prank(address(_factory));
         _pair.setManager(_manager);

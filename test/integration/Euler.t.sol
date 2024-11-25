@@ -57,7 +57,7 @@ contract EulerIntegrationTest is BaseTest {
             uint256 lBefore = vm.snapshotState();
             _pair = _pairs[i];
             _;
-            require(vm.revertToStateAndDelete(lBefore));
+            require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
         }
     }
 
@@ -67,7 +67,7 @@ contract EulerIntegrationTest is BaseTest {
             Network memory lNetwork = _networks[i];
             _setupRPC(lNetwork);
             _;
-            require(vm.revertToStateAndDelete(lBefore));
+            require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
         }
     }
 

@@ -148,6 +148,7 @@ abstract contract BaseTest is Test {
         // ask on telegram?
 
         (bytes32[] memory lAccesses,) = vm.accesses(address(aPair));
+        // solhint-disable-next-line no-console
         if (lAccesses.length != 1) console2.log ("warn: invalid number of accesses");
 
         vm.store(address(aPair), lAccesses[0], lEncoded);

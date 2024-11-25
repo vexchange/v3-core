@@ -15,7 +15,7 @@ contract FlashSwapTest is BaseTest, IReservoirCallee {
             uint256 lBefore = vm.snapshotState();
             _pair = _pairs[i];
             _;
-            require(vm.revertToStateAndDelete(lBefore));
+            require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
         }
     }
 

@@ -142,7 +142,7 @@ contract StablePairTest is BaseTest {
         uint256 lBurnOutputA = _tokenA.balanceOf(address(this));
         uint256 lBurnOutputB = _tokenB.balanceOf(address(this));
 
-        require(vm.revertToStateAndDelete(lBefore));
+        require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
 
         // swap
         uint256 lAmountToSwap = lAmountBToMint - lBurnOutputB;
@@ -191,7 +191,7 @@ contract StablePairTest is BaseTest {
         _stablePair.mint(address(this));
         uint256 lLpTokens1 = _stablePair.balanceOf(address(this));
 
-        require(vm.revertToStateAndDelete(lBefore));
+        require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
 
         vm.warp(lFutureATimestamp);
         _tokenA.mint(address(_stablePair), 5e18);
@@ -732,7 +732,7 @@ contract StablePairTest is BaseTest {
         uint256 lActualOut = _stablePair.swap(int256(lSwapAmt), true, address(this), bytes(""));
         assertEq(lExpectedOut0, lActualOut);
 
-        require(vm.revertToStateAndDelete(lBefore));
+        require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
         vm.prank(address(_factory));
         _stablePair.setCustomSwapFee(lSwapFee1);
         lBefore = vm.snapshotState();
@@ -744,7 +744,7 @@ contract StablePairTest is BaseTest {
         lActualOut = _stablePair.swap(int256(lSwapAmt), true, address(this), bytes(""));
         assertEq(lExpectedOut1, lActualOut);
 
-        require(vm.revertToStateAndDelete(lBefore));
+        require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
         vm.prank(address(_factory));
         _stablePair.setCustomSwapFee(lSwapFee2);
 
@@ -875,7 +875,7 @@ contract StablePairTest is BaseTest {
         uint256 lTokenABal0 = _tokenA.balanceOf(address(this));
         uint256 lTokenBBal0 = _tokenB.balanceOf(address(this));
 
-        require(vm.revertToStateAndDelete(lBefore));
+        require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
 
         vm.warp(lFutureATimestamp);
         vm.prank(_alice);
@@ -1240,7 +1240,7 @@ contract StablePairTest is BaseTest {
         _tokenA.mint(address(_stablePair), uint256(lAmountToSwap));
         uint256 lAmountOutBeforeRamp = _stablePair.swap(lAmountToSwap, true, address(this), "");
 
-        require(vm.revertToStateAndDelete(lBefore));
+        require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
         lBefore = vm.snapshotState();
 
         uint256 lTimeToSkip = bound(aSeed, 0, lRemainingTime / 4);
@@ -1248,7 +1248,7 @@ contract StablePairTest is BaseTest {
         _tokenA.mint(address(_stablePair), uint256(lAmountToSwap));
         uint256 lAmountOutT1 = _stablePair.swap(lAmountToSwap, true, address(this), "");
 
-        require(vm.revertToStateAndDelete(lBefore));
+        require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
         lBefore = vm.snapshotState();
 
         lTimeToSkip = bound(aSeed, lRemainingTime / 4, lRemainingTime / 2);
@@ -1256,7 +1256,7 @@ contract StablePairTest is BaseTest {
         _tokenA.mint(address(_stablePair), uint256(lAmountToSwap));
         uint256 lAmountOutT2 = _stablePair.swap(lAmountToSwap, true, address(this), "");
 
-        require(vm.revertToStateAndDelete(lBefore));
+        require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
 
         _stepTime(lRemainingTime);
         _tokenA.mint(address(_stablePair), uint256(lAmountToSwap));
@@ -1294,7 +1294,7 @@ contract StablePairTest is BaseTest {
         _tokenA.mint(address(_stablePair), uint256(lAmountToSwap));
         uint256 lAmountOutBeforeRamp = _stablePair.swap(lAmountToSwap, true, address(this), "");
 
-        require(vm.revertToStateAndDelete(lBefore));
+        require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
         lBefore = vm.snapshotState();
 
         uint256 lTimeToSkip = bound(aSeed, 0, lRemainingTime / 4);
@@ -1302,7 +1302,7 @@ contract StablePairTest is BaseTest {
         _tokenA.mint(address(_stablePair), uint256(lAmountToSwap));
         uint256 lAmountOutT1 = _stablePair.swap(lAmountToSwap, true, address(this), "");
 
-        require(vm.revertToStateAndDelete(lBefore));
+        require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
         lBefore = vm.snapshotState();
 
         lTimeToSkip = bound(aSeed, lRemainingTime / 4, lRemainingTime / 2);
@@ -1310,7 +1310,7 @@ contract StablePairTest is BaseTest {
         _tokenA.mint(address(_stablePair), uint256(lAmountToSwap));
         uint256 lAmountOutT2 = _stablePair.swap(lAmountToSwap, true, address(this), "");
 
-        require(vm.revertToStateAndDelete(lBefore));
+        require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
 
         _stepTime(lRemainingTime);
         _tokenA.mint(address(_stablePair), uint256(lAmountToSwap));
