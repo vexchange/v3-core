@@ -141,7 +141,7 @@ contract EulerIntegrationTest is BaseTest {
     function setUp() external {
         _networks.push(
             Network(
-                getChain("mainnet").rpcUrl,
+                "https://rpc.ankr.com/eth",
                 21272382, // pin to this block number
                 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
                 0xE982615d461DD5cD06575BbeA87624fda4e3de17,
