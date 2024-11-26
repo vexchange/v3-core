@@ -131,7 +131,7 @@ jobs:
       - run: lcov -r lcov.info "test/*" -o lcov.info
       - run: |
           ! lcov --summary lcov.info | grep -q 0.0%
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v5
         with:
           fail_ci_if_error: true
           files: ./lcov.info
