@@ -15,6 +15,7 @@ import { ReturnAssetExploit } from "../__mocks/ReturnAssetExploit.sol";
 
 struct Network {
     string rpcUrl;
+    uint256 blockNumber;
     address USDC;
     address masterMinterUSDC;
     address USDCVault;
@@ -66,6 +67,7 @@ contract EulerIntegrationTest is BaseTest {
             uint256 lBefore = vm.snapshotState();
             Network memory lNetwork = _networks[i];
             _setupRPC(lNetwork);
+            require(block.number == lNetwork.blockNumber, "vm not at pinned block");
             _;
             require(vm.revertToStateAndDelete(lBefore), "revertToStateAndDelete failed");
         }
@@ -75,7 +77,7 @@ contract EulerIntegrationTest is BaseTest {
         Fork memory lFork = _forks[aNetwork.rpcUrl];
 
         if (lFork.created == false) {
-            uint256 lForkId = vm.createFork(aNetwork.rpcUrl);
+            uint256 lForkId = vm.createFork(aNetwork.rpcUrl, aNetwork.blockNumber);
 
             lFork = Fork(true, lForkId);
             _forks[aNetwork.rpcUrl] = lFork;
@@ -140,6 +142,7 @@ contract EulerIntegrationTest is BaseTest {
         _networks.push(
             Network(
                 getChain("mainnet").rpcUrl,
+                21272382, // pin to this block number
                 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
                 0xE982615d461DD5cD06575BbeA87624fda4e3de17,
                 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9, // Euler Prime USDC vault
