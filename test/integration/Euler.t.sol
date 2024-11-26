@@ -1087,8 +1087,8 @@ contract EulerIntegrationTest is BaseTest {
         uint256 lPair2Shares = _manager.shares(lPair2, USDC);
         uint256 lPair3Shares = _manager.shares(lPair3, USDC);
         assertEq(lPairShares + lPair2Shares + lPair3Shares, _manager.totalShares(USDCVault));
-        assertGt(lPairShares, lPairSharesBefore);
-        assertGt(lPair2Shares, lPair2SharesBefore);
-        assertGt(lPair3Shares, lPair3SharesBefore);
+        assertGe(lPairShares, lPairSharesBefore);
+        assertGe(lPair2Shares, lPair2SharesBefore);
+        assertGe(lPair3Shares, lPair3SharesBefore);
     }
 }

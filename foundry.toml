@@ -21,6 +21,9 @@ ignored_error_codes = []
 [profile.integration]
 match_path = "test/integration/*.sol"
 
+[profile.coverage-integration]
+match_path = "test/integration/*.sol"
+
 [profile.differential]
 fs_permissions = [{ access = "read", path = "./reference/balancer-v2-monorepo" }]
 match_path     = "test/differential/*.sol"
