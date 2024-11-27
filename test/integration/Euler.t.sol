@@ -141,7 +141,7 @@ contract EulerIntegrationTest is BaseTest {
     function setUp() external {
         _networks.push(
             Network(
-                "https://rpc.ankr.com/eth",
+                vm.rpcUrl("mainnet"),
                 21272382, // pin to this block number
                 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
                 0xE982615d461DD5cD06575BbeA87624fda4e3de17,
@@ -335,6 +335,8 @@ contract EulerIntegrationTest is BaseTest {
     function testAdjustManagement_WindDown() external allNetworks allPairs {
         // arrange
         _increaseManagementOneToken(300e6);
+        ReservoirPair lOtherPair = _createOtherPair();
+
         _manager.setWindDownMode(true);
         int256 lIncreaseAmt = 50e6;
 
@@ -342,9 +344,13 @@ contract EulerIntegrationTest is BaseTest {
         _manager.adjustManagement(
             _pair, _pair.token0() == USDC ? lIncreaseAmt : int256(0), _pair.token1() == USDC ? lIncreaseAmt : int256(0)
         );
+        _manager.adjustManagement(
+            lOtherPair, lOtherPair.token0() == USDC ? lIncreaseAmt : int256(0), lOtherPair.token1() == USDC ? lIncreaseAmt : int256(0)
+        );
 
         // assert
         assertApproxEqAbs(_manager.getBalance(_pair, USDC), 300e6, 1);
+        assertEq(_manager.getBalance(lOtherPair, USDC), 0);
     }
 
     function testGetBalance(uint256 aAmountToManage) public allNetworks allPairs {
