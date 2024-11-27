@@ -142,7 +142,7 @@ contract EulerIntegrationTest is BaseTest {
         _networks.push(
             Network(
                 vm.rpcUrl("mainnet"),
-                21272382, // pin to this block number
+                21_272_382, // pin to this block number
                 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
                 0xE982615d461DD5cD06575BbeA87624fda4e3de17,
                 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9, // Euler Prime USDC vault
@@ -345,7 +345,9 @@ contract EulerIntegrationTest is BaseTest {
             _pair, _pair.token0() == USDC ? lIncreaseAmt : int256(0), _pair.token1() == USDC ? lIncreaseAmt : int256(0)
         );
         _manager.adjustManagement(
-            lOtherPair, lOtherPair.token0() == USDC ? lIncreaseAmt : int256(0), lOtherPair.token1() == USDC ? lIncreaseAmt : int256(0)
+            lOtherPair,
+            lOtherPair.token0() == USDC ? lIncreaseAmt : int256(0),
+            lOtherPair.token1() == USDC ? lIncreaseAmt : int256(0)
         );
 
         // assert
@@ -969,6 +971,49 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(_manager.shares(_pair, USDC), 0, "pair shares");
         assertEq(_manager.shares(lPair2, USDC), 0, "pair2 shares");
         assertEq(_manager.shares(lPair3, USDC), 0, "pair3 shares");
+    }
+
+    // this test shows that the asset manager should still function properly with investing, divesting, showing balance
+    // even if an external party transfers unsolicited shares into it
+    function testResilientEvenInExternalShareTransfer() external allNetworks allPairs {
+        // arrange
+        _increaseManagementOneToken(12_312_322);
+        uint256 lPairBalance = _manager.getBalance(_pair, USDC);
+        uint256 lPairShares = _manager.shares(_pair, USDC);
+        uint256 lOldTotalShares = _manager.totalShares(USDCVault);
+
+        uint256 lAmtToSupply = 100_000e6;
+        _deal(address(USDC), address(this), lAmtToSupply);
+        USDC.approve(address(USDCVault), lAmtToSupply);
+        uint256 lSharesReceived = USDCVault.deposit(lAmtToSupply, address(this));
+        assertEq(lSharesReceived, USDCVault.balanceOf(address(this)));
+
+        // act
+        USDCVault.transfer(address(_manager), lSharesReceived);
+
+        // assert
+        assertEq(_manager.getBalance(_pair, USDC), lPairBalance); // pair's balance should not change
+        assertEq(_manager.shares(_pair, USDC), lPairShares);
+        assertEq(_manager.totalShares(USDCVault), lOldTotalShares);
+        assertGt(USDCVault.balanceOf(address(_manager)), lOldTotalShares);
+
+        _manager.adjustManagement(
+            _pair,
+            USDC == _pair.token0() ? -int256(lPairBalance) : int256(0),
+            USDC == _pair.token1() ? -int256(lPairBalance) : int256(0)
+        );
+
+        assertEq(_manager.getBalance(_pair, USDC), 0);
+        assertEq(_manager.shares(_pair, USDC), 0);
+        assertEq(_manager.totalShares(USDCVault), 0);
+
+        // admins get the extra shares out
+        _manager.rawCall(
+            address(USDCVault),
+            abi.encodeCall(IERC20.transfer, (address(this), USDCVault.balanceOf(address(_manager)))),
+            0
+        );
+        assertEq(USDCVault.balanceOf(address(this)), lSharesReceived);
     }
 
     function testReturnAsset_Attack() external allNetworks allPairs {
