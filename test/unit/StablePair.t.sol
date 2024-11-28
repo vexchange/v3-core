@@ -93,7 +93,7 @@ contract StablePairTest is BaseTest {
         _stablePair.setManager(_reenter);
 
         // act & assert
-        vm.expectRevert("REENTRANCY");
+        vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
         _stablePair.mint(address(this));
     }
 
@@ -924,7 +924,7 @@ contract StablePairTest is BaseTest {
 //        bytes32 lEncoded = bytes32(abi.encodePacked(lLastInvariantAmp, lLastInvariant));
 //        // hardcoding the slot for now as there is no way to access it publicly
 //        // this will break when we change the storage layout
-//        vm.store(address(_stablePair), bytes32(uint256(17)), lEncoded);
+//        vm.store(address(_stablePair), bytes32(uint256(16)), lEncoded);
 //
 //        // ensure that the iterative function that _mintFee calls reverts with the adulterated values
 //        vm.prank(address(_stablePair));
