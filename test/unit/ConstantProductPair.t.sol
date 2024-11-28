@@ -8,7 +8,7 @@ import { MintableERC20 } from "test/__fixtures/MintableERC20.sol";
 import { AssetManager } from "test/__mocks/AssetManager.sol";
 
 import { LogCompression } from "src/libraries/LogCompression.sol";
-import { Observation } from "src/ReservoirPair.sol";
+import { Observation, ReentrancyGuardTransient } from "src/ReservoirPair.sol";
 import { IERC20 } from "src/GenericFactory.sol";
 import { ConstantProductPair, IReservoirCallee } from "src/curve/constant-product/ConstantProductPair.sol";
 
