@@ -6,7 +6,6 @@ import { SafeCast } from "@openzeppelin/utils/math/SafeCast.sol";
 import { MathUtils } from "src/libraries/MathUtils.sol";
 import { ReservoirPair, IERC20 } from "src/ReservoirPair.sol";
 import { AssetManager } from "test/__mocks/AssetManager.sol";
-import {SafeCast} from "../../lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 
 contract AssetManagedPairTest is BaseTest {
     AssetManager private _manager = new AssetManager();
