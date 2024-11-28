@@ -150,6 +150,6 @@ contract ReservoirDeployer {
         onlyOwner
         returns (bytes memory)
     {
-        return Address.functionCallWithValue(aTarget, aCalldata, aValue, "DEPLOYER: RAW_CALL_REVERTED");
+        return Address.functionCallWithValue(aTarget, aCalldata, aValue);
     }
 }

@@ -78,7 +78,7 @@ contract StableMintBurn is StablePair {
 
     function mint(address aTo) external override returns (uint256 rLiquidity) {
         // NB: Must sync management PNL before we load reserves.
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
+        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
         (lReserve0, lReserve1) = _syncManaged(lReserve0, lReserve1);
 
         uint256 lBalance0 = _totalToken0();
@@ -123,7 +123,7 @@ contract StableMintBurn is StablePair {
 
     function burn(address aTo) external override returns (uint256 rAmount0, uint256 rAmount1) {
         // NB: Must sync management PNL before we load reserves.
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
+        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
         (lReserve0, lReserve1) = _syncManaged(lReserve0, lReserve1);
 
         uint256 liquidity = balanceOf[address(this)];

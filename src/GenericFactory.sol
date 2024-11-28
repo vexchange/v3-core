@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import { Math } from "@openzeppelin/utils/math/Math.sol";
 import { Address } from "@openzeppelin/utils/Address.sol";
+import { Ownable } from "@openzeppelin/access/Ownable.sol";
 import { SSTORE2 } from "solady/utils/SSTORE2.sol";
-import { Owned } from "solmate/auth/Owned.sol";
 
 import { Bytes32Lib } from "src/libraries/Bytes32.sol";
 
@@ -13,12 +13,12 @@ import { StableMintBurn } from "src/curve/stable/StableMintBurn.sol";
 
 uint256 constant MAX_SSTORE_SIZE = 0x6000 - 1;
 
-contract GenericFactory is IGenericFactory, Owned {
+contract GenericFactory is IGenericFactory, Ownable {
     using Bytes32Lib for address;
 
     StableMintBurn public immutable stableMintBurn;
 
-    constructor() Owned(msg.sender) {
+    constructor() Ownable (msg.sender) {
         stableMintBurn = new StableMintBurn{ salt: bytes32(0) }();
     }
 
@@ -185,6 +185,6 @@ contract GenericFactory is IGenericFactory, Owned {
         onlyOwner
         returns (bytes memory)
     {
-        return Address.functionCallWithValue(aTarget, aCalldata, aValue, "FACTORY: RAW_CALL_REVERTED");
+        return Address.functionCallWithValue(aTarget, aCalldata, aValue);
     }
 }

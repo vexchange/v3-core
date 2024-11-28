@@ -97,7 +97,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         onlyOwner
         returns (bytes memory)
     {
-        return Address.functionCallWithValue(aTarget, aCalldata, aValue, "AM: RAW_CALL_REVERTED");
+        return Address.functionCallWithValue(aTarget, aCalldata, aValue);
     }
     /*//////////////////////////////////////////////////////////////////////////
                                 HELPER FUNCTIONS

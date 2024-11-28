@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import { SafeCast } from "@openzeppelin/utils/math/SafeCast.sol";
+import { ReentrancyGuardTransient } from "@openzeppelin/utils/ReentrancyGuardTransient.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
@@ -19,7 +20,7 @@ import { Observation } from "src/structs/Observation.sol";
 import { Slot0 } from "src/structs/Slot0.sol";
 import { ReservoirERC20 } from "src/ReservoirERC20.sol";
 
-abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
+abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, ReentrancyGuardTransient {
     using FactoryStoreLib for IGenericFactory;
     using Bytes32Lib for bytes32;
     using SafeCast for uint256;
@@ -96,46 +97,21 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
 
     //////////////////////////////////////////////////////////////////////////*/
 
-    Slot0 internal _slot0 = Slot0({ reserve0: 0, reserve1: 0, packedTimestamp: 0, index: Buffer.SIZE - 1 });
+    Slot0 internal _slot0 = Slot0({ reserve0: 0, reserve1: 0, timestamp: 0, index: Buffer.SIZE - 1 });
 
-    function _currentTime() internal view returns (uint32) {
-        return uint32(block.timestamp & 0x7FFFFFFF);
-    }
-
-    function _splitSlot0Timestamp(uint32 aPackedTimestamp) internal pure returns (uint32 rTimestamp, bool rLocked) {
-        rLocked = aPackedTimestamp >> 31 == 1;
-        rTimestamp = aPackedTimestamp & 0x7FFFFFFF;
-    }
-
-    /// @notice Writes the packed timestamp & re-entrancy guard into slot0.
-    /// @dev The timestamp argument must not exceed 2**31.
-    function _writeSlot0Timestamp(Slot0 storage sSlot0, uint32 aTimestamp, bool aLocked) internal {
-        uint32 lLocked = aLocked ? uint32(1 << 31) : uint32(0);
-        sSlot0.packedTimestamp = aTimestamp | lLocked;
-    }
-
-    function _lockAndLoad()
+    function _load()
         internal
         returns (Slot0 storage, uint104 rReserve0, uint104 rReserve1, uint32 rBlockTimestampLast, uint16 rIndex)
     {
         Slot0 storage sSlot0 = _slot0;
 
         // Load slot0 values.
-        bool lLock;
         rReserve0 = sSlot0.reserve0;
         rReserve1 = sSlot0.reserve1;
-        (rBlockTimestampLast, lLock) = _splitSlot0Timestamp(sSlot0.packedTimestamp);
+        rBlockTimestampLast = sSlot0.timestamp;
         rIndex = sSlot0.index;
 
-        // Acquire reentrancy lock.
-        require(!lLock, "REENTRANCY");
-        _writeSlot0Timestamp(sSlot0, rBlockTimestampLast, true);
-
         return (sSlot0, rReserve0, rReserve1, rBlockTimestampLast, rIndex);
-    }
-
-    function _unlock(Slot0 storage sSlot0, uint32 aBlockTimestampLast) internal {
-        _writeSlot0Timestamp(sSlot0, aBlockTimestampLast, false);
     }
 
     /// @notice Updates reserves with new balances.
@@ -153,7 +129,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
         require(aBalance0 <= type(uint104).max && aBalance1 <= type(uint104).max, "RP: OVERFLOW");
         require(aReserve0 <= type(uint104).max && aReserve1 <= type(uint104).max, "RP: OVERFLOW");
 
-        uint32 lBlockTimestamp = _currentTime();
+        uint32 lBlockTimestamp = uint32(block.timestamp); // invalid after year 2106
         uint32 lTimeElapsed;
         unchecked {
             // underflow is desired
@@ -199,7 +175,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
         // update reserves to match latest balances
         sSlot0.reserve0 = uint104(aBalance0);
         sSlot0.reserve1 = uint104(aBalance1);
-        _writeSlot0Timestamp(sSlot0, lBlockTimestamp, false);
+        sSlot0.timestamp = lBlockTimestamp;
 
         emit Sync(uint104(aBalance0), uint104(aBalance1));
     }
@@ -213,25 +189,26 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
 
         rReserve0 = lSlot0.reserve0;
         rReserve1 = lSlot0.reserve1;
-        (rBlockTimestampLast,) = _splitSlot0Timestamp(lSlot0.packedTimestamp);
+        rBlockTimestampLast = lSlot0.timestamp;
         rIndex = lSlot0.index;
     }
 
     /// @notice Force reserves to match balances.
-    function sync() external {
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
+    function sync() external nonReentrant {
+        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
         (lReserve0, lReserve1) = _syncManaged(lReserve0, lReserve1);
 
         _updateAndUnlock(sSlot0, _totalToken0(), _totalToken1(), lReserve0, lReserve1, lBlockTimestampLast);
     }
 
     /// @notice Force balances to match reserves.
-    function skim(address aTo) external {
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
+    function skim(address aTo) external nonReentrant {
+        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
 
         _checkedTransfer(token0(), aTo, _totalToken0() - lReserve0, lReserve0, lReserve1);
         _checkedTransfer(token1(), aTo, _totalToken1() - lReserve1, lReserve0, lReserve1);
-        _unlock(sSlot0, lBlockTimestampLast);
+
+        // might need to do an update here
     }
 
     /*//////////////////////////////////////////////////////////////////////////

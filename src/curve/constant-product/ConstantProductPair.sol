@@ -91,8 +91,8 @@ contract ConstantProductPair is ReservoirPair {
         }
     }
 
-    function mint(address aTo) external override returns (uint256 rLiquidity) {
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
+    function mint(address aTo) external override nonReentrant returns (uint256 rLiquidity) {
+        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
         (lReserve0, lReserve1) = _syncManaged(uint104(lReserve0), uint104(lReserve1)); // check asset-manager pnl
 
         uint256 lBalance0 = _totalToken0();
@@ -122,9 +122,9 @@ contract ConstantProductPair is ReservoirPair {
         _managerCallback();
     }
 
-    function burn(address aTo) external override returns (uint256 rAmount0, uint256 rAmount1) {
+    function burn(address aTo) external override nonReentrant returns (uint256 rAmount0, uint256 rAmount1) {
         // NB: Must sync management PNL before we load reserves.
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
+        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
         (lReserve0, lReserve1) = _syncManaged(uint104(lReserve0), uint104(lReserve1)); // check asset-manager pnl
 
         uint256 liquidity = balanceOf[address(this)];
@@ -152,9 +152,10 @@ contract ConstantProductPair is ReservoirPair {
     function swap(int256 aAmount, bool aExactIn, address aTo, bytes calldata aData)
         external
         override
+        nonReentrant
         returns (uint256 rAmountOut)
     {
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
+        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
         require(aAmount != 0, "CP: AMOUNT_ZERO");
         uint256 lAmountIn;
         IERC20 lTokenOut;

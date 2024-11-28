@@ -1,7 +1,8 @@
 [profile.default]
-solc = "0.8.23"
+solc = "0.8.28"
 evm_version = "cancun"
 #via_ir = true
+evm_version = "cancun"
 bytecode_hash = "ipfs"
 optimizer_runs = 1_000_000
 gas_limit = "18446744073709551615"

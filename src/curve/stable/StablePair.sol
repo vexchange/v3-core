@@ -128,9 +128,10 @@ contract StablePair is ReservoirPair {
         external
         virtual
         override
+        nonReentrant
         returns (uint256 rAmountOut)
     {
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
+        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
         require(aAmount != 0, "SP: AMOUNT_ZERO");
         uint256 lAmountIn;
         IERC20 lTokenOut;
