@@ -5,6 +5,7 @@ import "test/__fixtures/BaseTest.sol";
 import "test/__fixtures/MintableERC20.sol";
 
 import { BytesLib } from "test/helpers/BytesLib.sol";
+import { Ownable } from "@openzeppelin/access/Ownable.sol";
 
 contract GenericFactoryTest is BaseTest {
     using BytesLib for bytes;
@@ -120,7 +121,7 @@ contract GenericFactoryTest is BaseTest {
         vm.prank(_alice);
 
         // act & assert
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectPartialRevert(Ownable.OwnableUnauthorizedAccount.selector);
         _factory.addCurve(bytes("random bytes"));
     }
 

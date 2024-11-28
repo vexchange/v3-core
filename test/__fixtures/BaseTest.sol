@@ -11,7 +11,7 @@ import { Constants } from "src/Constants.sol";
 
 import { ReservoirDeployer } from "src/ReservoirDeployer.sol";
 import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
-import { ReservoirPair } from "src/ReservoirPair.sol";
+import { ReservoirPair, ReentrancyGuardTransient } from "src/ReservoirPair.sol";
 import { ConstantProductPair } from "src/curve/constant-product/ConstantProductPair.sol";
 import { StablePair } from "src/curve/stable/StablePair.sol";
 

@@ -451,7 +451,7 @@ contract StablePairTest is BaseTest {
 
         // act
         MintableERC20(lToken0).mint(address(_stablePair), 1e18);
-        vm.expectRevert("REENTRANCY");
+        vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
         _stablePair.swap(1e18, true, address(this), bytes(hex"00"));
     }
 
