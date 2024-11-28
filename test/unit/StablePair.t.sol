@@ -13,6 +13,7 @@ import { Observation } from "src/ReservoirPair.sol";
 import { StablePair } from "src/curve/stable/StablePair.sol";
 import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
 import { AssetManagerReenter } from "test/__mocks/AssetManagerReenter.sol";
+import { ReentrancyGuardTransient } from "../../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuardTransient.sol";
 
 contract StablePairTest is BaseTest {
     using FactoryStoreLib for GenericFactory;
@@ -837,7 +838,7 @@ contract StablePairTest is BaseTest {
         _stablePair.setManager(_reenter);
 
         // act & assert
-        vm.expectRevert("REENTRANCY");
+        vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
         _stablePair.burn(address(this));
     }
 
