@@ -51,9 +51,6 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     /// the pairs in this mode to facilitate replacement of asset managers to newer versions.
     bool public windDownMode;
 
-    // solhint-disable-next-line no-empty-blocks
-    constructor() { }
-
     /*//////////////////////////////////////////////////////////////////////////
                                     MODIFIERS
     //////////////////////////////////////////////////////////////////////////*/
