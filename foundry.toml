@@ -1,5 +1,6 @@
 [profile.default]
 solc = "0.8.23"
+evm_version = "cancun"
 #via_ir = true
 bytecode_hash = "ipfs"
 optimizer_runs = 1_000_000
@@ -17,7 +18,13 @@ fs_permissions = [
 ]
 ignored_error_codes = []
 
+[profile.default.fuzz]
+seed = "0xd679d565cc78d6c78308f18282cb070e065bf4c517fbd552922d47f2127a2bbc"
+
 [profile.integration]
+match_path = "test/integration/*.sol"
+
+[profile.coverage-integration]
 match_path = "test/integration/*.sol"
 
 [profile.differential]
@@ -32,9 +39,12 @@ runs = 10_000
 
 [fmt]
 bracket_spacing   = true
-wrap_comments     = false
+wrap_comments     = true
 number_underscore = "thousands"
 int_types         = "long"
 
 [profile.script]
 optimizer_runs = 1_000_000
+
+[rpc_endpoints]
+mainnet = "https://rpc.ankr.com/eth"

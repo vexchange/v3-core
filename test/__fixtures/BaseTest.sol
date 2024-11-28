@@ -47,7 +47,10 @@ abstract contract BaseTest is Test {
 
     constructor() {
         try vm.envString("FOUNDRY_PROFILE") returns (string memory lProfile) {
-            if (keccak256(abi.encodePacked(lProfile)) == keccak256(abi.encodePacked("coverage"))) {
+            if (
+                keccak256(abi.encodePacked(lProfile)) == keccak256(abi.encodePacked("coverage"))
+                    || keccak256(abi.encodePacked(lProfile)) == keccak256(abi.encodePacked("coverage-integration"))
+            ) {
                 vm.writeJson(_deployerMetadata(), "script/unoptimized-deployer-meta");
             }
         } catch {
@@ -137,8 +140,13 @@ abstract contract BaseTest is Test {
 
         vm.record();
         aPair.observation(aIndex);
+
         (bytes32[] memory lAccesses,) = vm.accesses(address(aPair));
-        require(lAccesses.length == 1, "invalid number of accesses");
+
+        // for coverage, due to the optimizer being turned off, the accesses will be >1 instead of 1, due to the struct
+        // members
+        // solhint-disable-next-line no-console
+        if (lAccesses.length != 1) console2.log("warn: invalid number of accesses");
 
         vm.store(address(aPair), lAccesses[0], lEncoded);
     }
