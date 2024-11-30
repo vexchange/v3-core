@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import { SafeCast } from "@openzeppelin/utils/math/SafeCast.sol";
-import { ReentrancyGuardTransient } from "@openzeppelin/utils/ReentrancyGuardTransient.sol";
+import { ReentrancyGuardTransient as RGT } from "@openzeppelin/utils/ReentrancyGuardTransient.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
@@ -20,7 +20,7 @@ import { Observation } from "src/structs/Observation.sol";
 import { Slot0 } from "src/structs/Slot0.sol";
 import { ReservoirERC20 } from "src/ReservoirERC20.sol";
 
-abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, ReentrancyGuardTransient {
+abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     using FactoryStoreLib for IGenericFactory;
     using Bytes32Lib for bytes32;
     using SafeCast for uint256;
@@ -101,6 +101,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, Reentrancy
 
     function _load()
         internal
+        view
         returns (Slot0 storage, uint104 rReserve0, uint104 rReserve1, uint32 rBlockTimestampLast, uint16 rIndex)
     {
         Slot0 storage sSlot0 = _slot0;

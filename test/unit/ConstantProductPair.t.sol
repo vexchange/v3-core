@@ -8,7 +8,7 @@ import { MintableERC20 } from "test/__fixtures/MintableERC20.sol";
 import { AssetManager } from "test/__mocks/AssetManager.sol";
 
 import { LogCompression } from "src/libraries/LogCompression.sol";
-import { Observation, ReentrancyGuardTransient } from "src/ReservoirPair.sol";
+import { Observation, RGT } from "src/ReservoirPair.sol";
 import { IERC20 } from "src/GenericFactory.sol";
 import { ConstantProductPair, IReservoirCallee } from "src/curve/constant-product/ConstantProductPair.sol";
 
@@ -152,7 +152,7 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
 
         // act
         MintableERC20(lToken0).mint(address(_constantProductPair), 1e18);
-        vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
+        vm.expectRevert(RGT.ReentrancyGuardReentrantCall.selector);
         _constantProductPair.swap(1e18, true, address(this), bytes(hex"00"));
     }
 

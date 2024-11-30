@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import { ReentrancyGuard } from "solmate/utils/ReentrancyGuard.sol";
-import { Owned } from "solmate/auth/Owned.sol";
+import { ReentrancyGuardTransient as RGT } from "@openzeppelin/utils/ReentrancyGuardTransient.sol";
+import { Ownable } from "@openzeppelin/access/Ownable.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { SafeCast } from "@openzeppelin/utils/math/SafeCast.sol";
@@ -13,7 +13,7 @@ import { IAssetManager, IERC20 } from "src/interfaces/IAssetManager.sol";
 import { IDistributor } from "src/interfaces/merkl/IDistributor.sol";
 import { IERC4626 } from "lib/forge-std/src/interfaces/IERC4626.sol";
 
-contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
+contract EulerV2Manager is IAssetManager, Ownable(msg.sender), RGT {
     using FixedPointMathLib for uint256;
     using SafeCast for uint256;
 
@@ -56,7 +56,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
     //////////////////////////////////////////////////////////////////////////*/
 
     modifier onlyGuardianOrOwner() {
-        require(msg.sender == guardian || msg.sender == owner, "AM: UNAUTHORIZED");
+        require(msg.sender == guardian || msg.sender == owner(), "AM: UNAUTHORIZED");
         _;
     }
 

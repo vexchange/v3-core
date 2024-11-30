@@ -126,7 +126,7 @@ contract StableMintBurn is StablePair {
         (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
         (lReserve0, lReserve1) = _syncManaged(lReserve0, lReserve1);
 
-        uint256 liquidity = balanceOf[address(this)];
+        uint256 liquidity = balanceOf(address(this));
 
         uint256 lTotalSupply;
         // this is a safety feature that prevents revert when removing liquidity
@@ -137,7 +137,7 @@ contract StableMintBurn is StablePair {
         try StablePair(this).mintFee(lReserve0, lReserve1) returns (uint256 rTotalSupply, uint256) {
             lTotalSupply = rTotalSupply;
         } catch {
-            lTotalSupply = totalSupply;
+            lTotalSupply = totalSupply();
         }
 
         rAmount0 = liquidity.fullMulDiv(lReserve0, lTotalSupply);
@@ -174,7 +174,7 @@ contract StableMintBurn is StablePair {
 
     function _mintFee(uint256 aReserve0, uint256 aReserve1) internal returns (uint256 rTotalSupply, uint256 rD) {
         bool lFeeOn = platformFee > 0;
-        rTotalSupply = totalSupply;
+        rTotalSupply = totalSupply();
         rD = StableMath._computeLiquidityFromAdjustedBalances(
             aReserve0 * token0PrecisionMultiplier(), aReserve1 * token1PrecisionMultiplier(), 2 * lastInvariantAmp
         );

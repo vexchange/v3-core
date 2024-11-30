@@ -81,7 +81,7 @@ contract ConstantProductPair is ReservoirPair {
 
             if (lSqrtNewK > lSqrtOldK) {
                 // input arguments fulfill invariants for _calcFee
-                uint256 lSharesToIssue = _calcFee(lSqrtNewK, lSqrtOldK, platformFee, totalSupply);
+                uint256 lSharesToIssue = _calcFee(lSqrtNewK, lSqrtOldK, platformFee, totalSupply());
 
                 if (lSharesToIssue > 0) {
                     address platformFeeTo = factory.read(PLATFORM_FEE_TO_NAME).toAddress();
@@ -101,7 +101,7 @@ contract ConstantProductPair is ReservoirPair {
         uint256 lAmount1 = lBalance1 - lReserve1;
 
         _mintFee(lReserve0, lReserve1);
-        uint256 lTotalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
+        uint256 lTotalSupply = totalSupply(); // gas savings, must be defined here since totalSupply can update in _mintFee
         if (lTotalSupply == 0) {
             rLiquidity = FixedPointMathLib.sqrt(lAmount0 * lAmount1) - MINIMUM_LIQUIDITY;
             _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
@@ -127,10 +127,10 @@ contract ConstantProductPair is ReservoirPair {
         (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
         (lReserve0, lReserve1) = _syncManaged(uint104(lReserve0), uint104(lReserve1)); // check asset-manager pnl
 
-        uint256 liquidity = balanceOf[address(this)];
+        uint256 liquidity = balanceOf(address(this));
 
         _mintFee(lReserve0, lReserve1);
-        uint256 lTotalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
+        uint256 lTotalSupply = totalSupply(); // gas savings, must be defined here since totalSupply can update in _mintFee
         rAmount0 = liquidity * _totalToken0() / lTotalSupply; // using balances ensures pro-rata distribution
         rAmount1 = liquidity * _totalToken1() / lTotalSupply; // using balances ensures pro-rata distribution
         _burn(address(this), liquidity);
