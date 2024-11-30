@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "test/__fixtures/BaseTest.sol";
 import { MintableReservoirERC20 } from "test/__fixtures/MintableReservoirERC20.sol";
+import { ERC20 } from "solady/tokens/ERC20.sol";
 
 contract ReservoirERC20Test is BaseTest {
     MintableReservoirERC20 private _token = new MintableReservoirERC20(18);
@@ -42,7 +43,7 @@ contract ReservoirERC20Test is BaseTest {
 
         // assert
         vm.prank(_alice);
-        vm.expectRevert(stdError.arithmeticError);
+        vm.expectRevert(ERC20.InsufficientAllowance.selector);
         _token.transferFrom(address(this), _alice, 50e18 + 1);
 
         // assert
