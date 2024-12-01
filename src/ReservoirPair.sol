@@ -188,12 +188,10 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
 
     /// @notice Force balances to match reserves.
     function skim(address aTo) external nonReentrant {
-        (uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = getReserves();
+        (uint256 lReserve0, uint256 lReserve1, ,) = getReserves();
 
         _checkedTransfer(token0(), aTo, _totalToken0() - lReserve0, lReserve0, lReserve1);
         _checkedTransfer(token1(), aTo, _totalToken1() - lReserve1, lReserve0, lReserve1);
-
-        // might need to do an update here
     }
 
     /*//////////////////////////////////////////////////////////////////////////

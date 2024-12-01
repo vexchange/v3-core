@@ -11,7 +11,7 @@ import { ConstantProductOracleMath } from "src/libraries/ConstantProductOracleMa
 import { IReservoirCallee } from "src/interfaces/IReservoirCallee.sol";
 import { IGenericFactory, IERC20 } from "src/interfaces/IGenericFactory.sol";
 
-import { ReservoirPair, Slot0 } from "src/ReservoirPair.sol";
+import { ReservoirPair } from "src/ReservoirPair.sol";
 
 contract ConstantProductPair is ReservoirPair {
     using FactoryStoreLib for IGenericFactory;

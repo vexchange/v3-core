@@ -9,8 +9,7 @@ import {
     FactoryStoreLib,
     StableMath,
     IGenericFactory,
-    StablePair,
-    Slot0
+    StablePair
 } from "src/curve/stable/StablePair.sol";
 
 contract StableMintBurn is StablePair {
