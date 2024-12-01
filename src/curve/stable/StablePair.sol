@@ -131,7 +131,7 @@ contract StablePair is ReservoirPair {
         nonReentrant
         returns (uint256 rAmountOut)
     {
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
+        (uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast, uint16 lIndex) = getReserves();
         require(aAmount != 0, "SP: AMOUNT_ZERO");
         uint256 lAmountIn;
         IERC20 lTokenOut;
@@ -187,7 +187,7 @@ contract StablePair is ReservoirPair {
         uint256 lReceived = lTokenOut == token0() ? lBalance1 - lReserve1 : lBalance0 - lReserve0;
         require(lReceived >= lAmountIn, "SP: INSUFFICIENT_AMOUNT_IN");
 
-        _updateAndUnlock(sSlot0, lBalance0, lBalance1, uint104(lReserve0), uint104(lReserve1), lBlockTimestampLast);
+        _update(lBalance0, lBalance1, uint104(lReserve0), uint104(lReserve1), lBlockTimestampLast, lIndex);
         emit Swap(msg.sender, lTokenOut == token1(), lReceived, rAmountOut, aTo);
     }
 

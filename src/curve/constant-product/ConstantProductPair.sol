@@ -92,7 +92,7 @@ contract ConstantProductPair is ReservoirPair {
     }
 
     function mint(address aTo) external override nonReentrant returns (uint256 rLiquidity) {
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
+        (uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast, uint16 lIndex) = getReserves();
         (lReserve0, lReserve1) = _syncManaged(uint104(lReserve0), uint104(lReserve1)); // check asset-manager pnl
 
         uint256 lBalance0 = _totalToken0();
@@ -118,13 +118,13 @@ contract ConstantProductPair is ReservoirPair {
         kLast = lBalance0 * lBalance1;
         emit Mint(msg.sender, lAmount0, lAmount1);
 
-        _updateAndUnlock(sSlot0, lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast);
+        _update(lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast, lIndex);
         _managerCallback();
     }
 
     function burn(address aTo) external override nonReentrant returns (uint256 rAmount0, uint256 rAmount1) {
         // NB: Must sync management PNL before we load reserves.
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
+        (uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast, uint16 lIndex) = getReserves();
         (lReserve0, lReserve1) = _syncManaged(uint104(lReserve0), uint104(lReserve1)); // check asset-manager pnl
 
         uint256 liquidity = balanceOf(address(this));
@@ -145,7 +145,7 @@ contract ConstantProductPair is ReservoirPair {
         kLast = lBalance0 * lBalance1;
         emit Burn(msg.sender, rAmount0, rAmount1);
 
-        _updateAndUnlock(sSlot0, lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast);
+        _update(lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast, lIndex);
         _managerCallback();
     }
 
@@ -155,7 +155,7 @@ contract ConstantProductPair is ReservoirPair {
         nonReentrant
         returns (uint256 rAmountOut)
     {
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _load();
+        (uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast, uint16 lIndex) = getReserves();
         require(aAmount != 0, "CP: AMOUNT_ZERO");
         uint256 lAmountIn;
         IERC20 lTokenOut;
@@ -216,7 +216,7 @@ contract ConstantProductPair is ReservoirPair {
         uint256 lReceived = lTokenOut == token0() ? lBalance1 - lReserve1 : lBalance0 - lReserve0;
         require(lAmountIn <= lReceived, "CP: INSUFFICIENT_AMOUNT_IN");
 
-        _updateAndUnlock(sSlot0, lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast);
+        _update(lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast, lIndex);
         emit Swap(msg.sender, lTokenOut == token1(), lReceived, rAmountOut, aTo);
     }
 
