@@ -4,6 +4,9 @@
 [submodule "reference/uniswap-v2-core"]
 	path = reference/uniswap-v2-core
 	url = git@github.com:vexchange/uniswap-v2-core.git
+[submodule "lib/solmate"]
+	path = lib/solmate
+	url = https://github.com/transmissions11/solmate
 [submodule "reference/balancer-v2-monorepo"]
 	path = reference/balancer-v2-monorepo
 	url = git@github.com:Reservoir-Labs/balancer-v2-monorepo.git
@@ -14,6 +17,3 @@
 	path = lib/solady
 	url = https://github.com/Vectorized/solady
 	branch = v0.0.73
-[submodule "lib/solmate"]
-	path = lib/solmate
-	url = https://github.com/transmissions11/solmate
