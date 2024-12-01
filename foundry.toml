@@ -8,7 +8,7 @@ gas_limit = "18446744073709551615"
 libs = ['lib']
 remappings = [
     "@openzeppelin/=lib/openzeppelin-contracts/contracts/",
-    "solady/=lib/solady/src/"
+    "ds-test/=lib/forge-std/lib/ds-test/src/"
 ]
 match_path = "test/unit/*.sol"
 verbosity = 3
