@@ -55,11 +55,9 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     error InvalidChangePerSecond();
     error InvalidChangePerTrade();
     error AmountZero();
-
     error InsufficientLiqMinted();
     error InsufficientLiq();
     error InsufficientAmtIn();
-
 
     modifier onlyFactory() {
         require(msg.sender == address(factory), Forbidden());

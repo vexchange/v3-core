@@ -78,7 +78,7 @@ contract ReservoirPairTest is BaseTest {
 
         // act & assert
         _tokenA.mint(address(_pair), uint256(lSwapAmt));
-        vm.expectRevert("RP: TRANSFER_FAILED");
+        vm.expectRevert(ReservoirPair.TransferFailed.selector);
         _pair.swap(lSwapAmt, true, address(this), "");
     }
 
@@ -90,7 +90,7 @@ contract ReservoirPairTest is BaseTest {
 
         // act & assert
         _tokenA.mint(address(_pair), uint256(lSwapAmt));
-        vm.expectRevert("RP: TRANSFER_FAILED");
+        vm.expectRevert(ReservoirPair.TransferFailed.selector);
         _pair.swap(lSwapAmt, true, address(this), "");
     }
 

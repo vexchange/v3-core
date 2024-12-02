@@ -230,7 +230,7 @@ contract StablePairTest is BaseTest {
 
     function testMintFee_NotCallableByOthers() public {
         // act & assert
-        vm.expectRevert("SP: NOT_SELF");
+        vm.expectRevert(StablePair.NotSelf.selector);
         _stablePair.mintFee(0, 0);
     }
 
@@ -456,7 +456,7 @@ contract StablePairTest is BaseTest {
 
     function testSwap_ZeroInput() public {
         // act & assert
-        vm.expectRevert("SP: AMOUNT_ZERO");
+        vm.expectRevert(ReservoirPair.AmountZero.selector);
         _stablePair.swap(0, true, address(this), "");
     }
 
@@ -551,16 +551,16 @@ contract StablePairTest is BaseTest {
 
     function testSwap_ExactOutExceedReserves() public {
         // act & assert
-        vm.expectRevert("SP: NOT_ENOUGH_LIQ");
+        vm.expectRevert(ReservoirPair.InsufficientLiq.selector);
         _stablePair.swap(int256(Constants.INITIAL_MINT_AMOUNT), false, address(this), bytes(""));
 
-        vm.expectRevert("SP: NOT_ENOUGH_LIQ");
+        vm.expectRevert(ReservoirPair.InsufficientLiq.selector);
         _stablePair.swap(int256(Constants.INITIAL_MINT_AMOUNT + 1), false, address(this), bytes(""));
 
-        vm.expectRevert("SP: NOT_ENOUGH_LIQ");
+        vm.expectRevert(ReservoirPair.InsufficientLiq.selector);
         _stablePair.swap(-int256(Constants.INITIAL_MINT_AMOUNT), false, address(this), bytes(""));
 
-        vm.expectRevert("SP: NOT_ENOUGH_LIQ");
+        vm.expectRevert(ReservoirPair.InsufficientLiq.selector);
         _stablePair.swap(-int256(Constants.INITIAL_MINT_AMOUNT + 1), false, address(this), bytes(""));
     }
 
@@ -570,7 +570,7 @@ contract StablePairTest is BaseTest {
 
         // act & assert
         _tokenA.mint(address(_stablePair), lSwapAmt);
-        vm.expectRevert("RP: OVERFLOW");
+        vm.expectRevert(ReservoirPair.Overflow.selector);
         _stablePair.swap(int256(lSwapAmt), true, address(this), "");
     }
 
@@ -923,7 +923,7 @@ contract StablePairTest is BaseTest {
         bytes32 lEncoded = bytes32(abi.encodePacked(lLastInvariantAmp, lLastInvariant));
         // hardcoding the slot for now as there is no way to access it publicly
         // this will break when we change the storage layout
-        vm.store(address(_stablePair), bytes32(uint256(15)), lEncoded);
+        vm.store(address(_stablePair), bytes32(uint256(10)), lEncoded);
 
         // ensure that the iterative function that _mintFee calls reverts with the adulterated values
         vm.prank(address(_stablePair));
@@ -991,7 +991,7 @@ contract StablePairTest is BaseTest {
 
     function testRampA_OnlyFactory() public {
         // act && assert
-        vm.expectRevert("RP: FORBIDDEN");
+        vm.expectRevert(ReservoirPair.Forbidden.selector);
         _stablePair.rampA(100, uint64(block.timestamp + 10 days));
     }
 
@@ -1034,7 +1034,7 @@ contract StablePairTest is BaseTest {
         uint64 lFutureAToSet = uint64(StableMath.MIN_A) - 1;
 
         // act & assert
-        vm.expectRevert("SP: INVALID_A");
+        vm.expectRevert(StablePair.InvalidA.selector);
         _factory.rawCall(
             address(_stablePair), abi.encodeWithSignature("rampA(uint64,uint64)", lFutureAToSet, lFutureATimestamp), 0
         );
@@ -1047,7 +1047,7 @@ contract StablePairTest is BaseTest {
         uint64 lFutureAToSet = uint64(StableMath.MAX_A) + 1;
 
         // act & assert
-        vm.expectRevert("SP: INVALID_A");
+        vm.expectRevert(StablePair.InvalidA.selector);
         _factory.rawCall(
             address(_stablePair), abi.encodeWithSignature("rampA(uint64,uint64)", lFutureAToSet, lFutureATimestamp), 0
         );
@@ -1092,7 +1092,7 @@ contract StablePairTest is BaseTest {
         uint64 lFutureAToSet = _stablePair.getCurrentA() * 4;
 
         // act & assert
-        vm.expectRevert("SP: AMP_RATE_TOO_HIGH");
+        vm.expectRevert(StablePair.AmpRateTooHigh.selector);
         _factory.rawCall(
             address(_stablePair), abi.encodeWithSignature("rampA(uint64,uint64)", lFutureAToSet, lFutureATimestamp), 0
         );
@@ -1105,7 +1105,7 @@ contract StablePairTest is BaseTest {
         uint64 lFutureAToSet = _stablePair.getCurrentA() / 2 - 1;
 
         // act & assert
-        vm.expectRevert("SP: AMP_RATE_TOO_HIGH");
+        vm.expectRevert(StablePair.AmpRateTooHigh.selector);
         _factory.rawCall(
             address(_stablePair), abi.encodeWithSignature("rampA(uint64,uint64)", lFutureAToSet, lFutureATimestamp), 0
         );
@@ -1135,7 +1135,7 @@ contract StablePairTest is BaseTest {
 
     function testStopRampA_OnlyFactory() public {
         // act & assert
-        vm.expectRevert("RP: FORBIDDEN");
+        vm.expectRevert(ReservoirPair.Forbidden.selector);
         _stablePair.stopRampA();
     }
 

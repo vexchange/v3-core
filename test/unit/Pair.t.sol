@@ -92,7 +92,7 @@ contract PairTest is BaseTest {
         uint256 lCustomSwapFee = bound(aCustomSwapFee, _pair.MAX_SWAP_FEE() + 1, type(uint256).max - 1);
 
         // act & assert
-        vm.expectRevert("RP: INVALID_SWAP_FEE");
+        vm.expectRevert(ReservoirPair.InvalidSwapFee.selector);
         _factory.rawCall(address(_pair), abi.encodeWithSignature("setCustomSwapFee(uint256)", lCustomSwapFee), 0);
     }
 
@@ -128,7 +128,7 @@ contract PairTest is BaseTest {
         uint256 lPlatformFee = bound(aPlatformFee, _pair.MAX_PLATFORM_FEE() + 1, type(uint256).max - 1);
 
         // act & assert
-        vm.expectRevert("RP: INVALID_PLATFORM_FEE");
+        vm.expectRevert(ReservoirPair.InvalidPlatformFee.selector);
         _factory.rawCall(address(_pair), abi.encodeWithSignature("setCustomPlatformFee(uint256)", lPlatformFee), 0);
     }
 

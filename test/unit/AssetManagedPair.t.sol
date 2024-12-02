@@ -52,7 +52,7 @@ contract AssetManagedPairTest is BaseTest {
 
         // act & assert
         vm.prank(address(_factory));
-        vm.expectRevert("RP: AM_STILL_ACTIVE");
+        vm.expectRevert(ReservoirPair.AssetManagerStillActive.selector);
         _pair.setManager(AssetManager(address(0)));
     }
 
@@ -454,7 +454,7 @@ contract AssetManagedPairTest is BaseTest {
 
     function testSkimExcessManaged_InvalidToken() external allPairs {
         // act & assert
-        vm.expectRevert("RP: INVALID_SKIM_TOKEN");
+        vm.expectRevert(ReservoirPair.InvalidSkimToken.selector);
         _pair.skimExcessManaged(IERC20(address(_tokenD)));
     }
 }
