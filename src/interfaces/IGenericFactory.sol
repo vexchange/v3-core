@@ -3,11 +3,7 @@ pragma solidity ^0.8.0;
 
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 
-//import { StableMintBurn } from "src/curve/stable/StableMintBurn.sol";
-
 interface IGenericFactory {
-//    function stableMintBurn() external view returns (StableMintBurn);
-
     function get(bytes32 key) external view returns (bytes32 value);
     function set(bytes32 key, bytes32 value) external;
 
