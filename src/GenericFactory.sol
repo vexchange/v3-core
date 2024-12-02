@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import { Math } from "@openzeppelin/utils/math/Math.sol";
 import { Address } from "@openzeppelin/utils/Address.sol";
-import { SSTORE2 } from "solady/utils/SSTORE2.sol";
 import { Owned } from "solmate/auth/Owned.sol";
+import { SSTORE2 } from "solady/utils/SSTORE2.sol";
 
 import { Bytes32Lib } from "src/libraries/Bytes32.sol";
 
@@ -185,6 +185,6 @@ contract GenericFactory is IGenericFactory, Owned {
         onlyOwner
         returns (bytes memory)
     {
-        return Address.functionCallWithValue(aTarget, aCalldata, aValue, "FACTORY: RAW_CALL_REVERTED");
+        return Address.functionCallWithValue(aTarget, aCalldata, aValue);
     }
 }

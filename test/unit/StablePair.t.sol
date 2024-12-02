@@ -7,9 +7,8 @@ import { Math } from "test/__fixtures/Math.sol";
 import { MathUtils } from "src/libraries/MathUtils.sol";
 import { LogCompression } from "src/libraries/LogCompression.sol";
 import { StableOracleMath } from "src/libraries/StableOracleMath.sol";
-import { Uint31Lib } from "src/libraries/Uint31Lib.sol";
 import { StableMath } from "src/libraries/StableMath.sol";
-import { Observation } from "src/ReservoirPair.sol";
+import { Observation, RGT } from "src/ReservoirPair.sol";
 import { StablePair } from "src/curve/stable/StablePair.sol";
 import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
 import { AssetManagerReenter } from "test/__mocks/AssetManagerReenter.sol";
@@ -93,7 +92,7 @@ contract StablePairTest is BaseTest {
         _stablePair.setManager(_reenter);
 
         // act & assert
-        vm.expectRevert("REENTRANCY");
+        vm.expectRevert(RGT.Reentrancy.selector);
         _stablePair.mint(address(this));
     }
 
@@ -451,7 +450,7 @@ contract StablePairTest is BaseTest {
 
         // act
         MintableERC20(lToken0).mint(address(_stablePair), 1e18);
-        vm.expectRevert("REENTRANCY");
+        vm.expectRevert(RGT.Reentrancy.selector);
         _stablePair.swap(1e18, true, address(this), bytes(hex"00"));
     }
 
@@ -837,7 +836,7 @@ contract StablePairTest is BaseTest {
         _stablePair.setManager(_reenter);
 
         // act & assert
-        vm.expectRevert("REENTRANCY");
+        vm.expectRevert(RGT.Reentrancy.selector);
         _stablePair.burn(address(this));
     }
 
@@ -924,7 +923,7 @@ contract StablePairTest is BaseTest {
 //        bytes32 lEncoded = bytes32(abi.encodePacked(lLastInvariantAmp, lLastInvariant));
 //        // hardcoding the slot for now as there is no way to access it publicly
 //        // this will break when we change the storage layout
-//        vm.store(address(_stablePair), bytes32(uint256(17)), lEncoded);
+//        vm.store(address(_stablePair), bytes32(uint256(16)), lEncoded);
 //
 //        // ensure that the iterative function that _mintFee calls reverts with the adulterated values
 //        vm.prank(address(_stablePair));
@@ -1453,14 +1452,14 @@ contract StablePairTest is BaseTest {
 
         assertApproxEqRel(
             LogCompression.fromLowResLog(
-                (lObs1.logAccRawPrice - lObs0.logAccRawPrice) / int32(Uint31Lib.sub(lObs1.timestamp, lObs0.timestamp))
+                (lObs1.logAccRawPrice - lObs0.logAccRawPrice) / int32(lObs1.timestamp - lObs0.timestamp)
             ),
             lPrice1,
             0.0001e18
         );
         assertApproxEqRel(
             LogCompression.fromLowResLog(
-                (lObs2.logAccRawPrice - lObs0.logAccRawPrice) / int32(Uint31Lib.sub(lObs2.timestamp, lObs0.timestamp))
+                (lObs2.logAccRawPrice - lObs0.logAccRawPrice) / int32(lObs2.timestamp - lObs0.timestamp)
             ),
             Math.sqrt(lPrice1 * lPrice2),
             0.0001e18
@@ -1532,7 +1531,7 @@ contract StablePairTest is BaseTest {
         // Price for observation window 0-1
         assertApproxEqRel(
             LogCompression.fromLowResLog(
-                (lObs1.logAccRawPrice - lObs0.logAccRawPrice) / int32(Uint31Lib.sub(lObs1.timestamp, lObs0.timestamp))
+                (lObs1.logAccRawPrice - lObs0.logAccRawPrice) / int32(lObs1.timestamp - lObs0.timestamp)
             ),
             lSpotPrice1,
             0.0001e18
@@ -1540,7 +1539,7 @@ contract StablePairTest is BaseTest {
         // Price for observation window 1-2
         assertApproxEqRel(
             LogCompression.fromLowResLog(
-                (lObs2.logAccRawPrice - lObs1.logAccRawPrice) / int32(Uint31Lib.sub(lObs2.timestamp, lObs1.timestamp))
+                (lObs2.logAccRawPrice - lObs1.logAccRawPrice) / int32(lObs2.timestamp - lObs1.timestamp)
             ),
             lSpotPrice2,
             0.0001e18
@@ -1548,7 +1547,7 @@ contract StablePairTest is BaseTest {
         // Price for observation window 0-2
         assertApproxEqRel(
             LogCompression.fromLowResLog(
-                (lObs2.logAccRawPrice - lObs0.logAccRawPrice) / int32(Uint31Lib.sub(lObs2.timestamp, lObs0.timestamp))
+                (lObs2.logAccRawPrice - lObs0.logAccRawPrice) / int32(lObs2.timestamp - lObs0.timestamp)
             ),
             Math.sqrt(lSpotPrice1 * lSpotPrice2),
             0.0001e18

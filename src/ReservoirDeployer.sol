@@ -16,10 +16,10 @@ contract ReservoirDeployer {
     uint256 public step = 0;
 
     // Bytecode hashes.
-    bytes32 public constant FACTORY_HASH = bytes32(0x60b680774a2e6b5f3a74c7926f7945eedbd82d533768f2cc4641712d3a9747a9);
+    bytes32 public constant FACTORY_HASH = bytes32(0xb8eb4e1d02e635bb6da152ce7580fe5cb5fc84c08c115182dab2bc5e5b7af846);
     bytes32 public constant CONSTANT_PRODUCT_HASH =
-        bytes32(0xa0c82283f7cf9bcd7d4091d1c25e9c424a65f3d9602243387ef21b1cbca0864e);
-    bytes32 public constant STABLE_HASH = bytes32(0xcca43bf4944cac2ddebe02c1fde1a1ba13cc6f9aad27f68bdc1c9ac0cbd3b5a5);
+        bytes32(0x9b4b8c31899d5f738769b1b0210e59024ba678a959c7b5472fc7c5d20af3499e);
+    bytes32 public constant STABLE_HASH = bytes32(0xb2306017e4f95116690399a07ce40e550032286e0dff1db9f4c3d898c51430fc);
 
     // Deployment addresses.
     GenericFactory public factory;
@@ -150,6 +150,6 @@ contract ReservoirDeployer {
         onlyOwner
         returns (bytes memory)
     {
-        return Address.functionCallWithValue(aTarget, aCalldata, aValue, "DEPLOYER: RAW_CALL_REVERTED");
+        return Address.functionCallWithValue(aTarget, aCalldata, aValue);
     }
 }

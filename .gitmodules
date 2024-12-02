@@ -6,7 +6,7 @@
 	url = git@github.com:vexchange/uniswap-v2-core.git
 [submodule "lib/solmate"]
 	path = lib/solmate
-	url = https://github.com/Rari-Capital/solmate
+	url = https://github.com/transmissions11/solmate
 [submodule "reference/balancer-v2-monorepo"]
 	path = reference/balancer-v2-monorepo
 	url = git@github.com:Reservoir-Labs/balancer-v2-monorepo.git

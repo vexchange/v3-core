@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import { SafeCast } from "@openzeppelin/utils/math/SafeCast.sol";
+import { ReentrancyGuardTransient as RGT } from "solady/utils/ReentrancyGuardTransient.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
@@ -19,7 +20,7 @@ import { Observation } from "src/structs/Observation.sol";
 import { Slot0 } from "src/structs/Slot0.sol";
 import { ReservoirERC20 } from "src/ReservoirERC20.sol";
 
-abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
+abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     using FactoryStoreLib for IGenericFactory;
     using Bytes32Lib for bytes32;
     using SafeCast for uint256;
@@ -90,80 +91,47 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
         return _token1PrecisionMultiplier;
     }
 
+    function _useTransientReentrancyGuardOnlyOnMainnet() internal pure override returns (bool) {
+        return false;
+    }
+
     /*//////////////////////////////////////////////////////////////////////////
 
                                 SLOT0 & RESERVES
 
     //////////////////////////////////////////////////////////////////////////*/
 
-    Slot0 internal _slot0 = Slot0({ reserve0: 0, reserve1: 0, packedTimestamp: 0, index: Buffer.SIZE - 1 });
-
-    function _currentTime() internal view returns (uint32) {
-        return uint32(block.timestamp & 0x7FFFFFFF);
-    }
-
-    function _splitSlot0Timestamp(uint32 aPackedTimestamp) internal pure returns (uint32 rTimestamp, bool rLocked) {
-        rLocked = aPackedTimestamp >> 31 == 1;
-        rTimestamp = aPackedTimestamp & 0x7FFFFFFF;
-    }
-
-    /// @notice Writes the packed timestamp & re-entrancy guard into slot0.
-    /// @dev The timestamp argument must not exceed 2**31.
-    function _writeSlot0Timestamp(Slot0 storage sSlot0, uint32 aTimestamp, bool aLocked) internal {
-        uint32 lLocked = aLocked ? uint32(1 << 31) : uint32(0);
-        sSlot0.packedTimestamp = aTimestamp | lLocked;
-    }
-
-    function _lockAndLoad()
-        internal
-        returns (Slot0 storage, uint104 rReserve0, uint104 rReserve1, uint32 rBlockTimestampLast, uint16 rIndex)
-    {
-        Slot0 storage sSlot0 = _slot0;
-
-        // Load slot0 values.
-        bool lLock;
-        rReserve0 = sSlot0.reserve0;
-        rReserve1 = sSlot0.reserve1;
-        (rBlockTimestampLast, lLock) = _splitSlot0Timestamp(sSlot0.packedTimestamp);
-        rIndex = sSlot0.index;
-
-        // Acquire reentrancy lock.
-        require(!lLock, "REENTRANCY");
-        _writeSlot0Timestamp(sSlot0, rBlockTimestampLast, true);
-
-        return (sSlot0, rReserve0, rReserve1, rBlockTimestampLast, rIndex);
-    }
-
-    function _unlock(Slot0 storage sSlot0, uint32 aBlockTimestampLast) internal {
-        _writeSlot0Timestamp(sSlot0, aBlockTimestampLast, false);
-    }
+    Slot0 internal _slot0 = Slot0({ reserve0: 0, reserve1: 0, timestamp: 0, index: Buffer.SIZE - 1 });
 
     /// @notice Updates reserves with new balances.
-    /// @notice On the first call per block, accumulate price oracle using previous instant prices and write the new instant prices.
+    /// @notice On the first call per block, accumulate price oracle using previous instant prices and write the new
+    /// instant prices.
     /// @dev The price is not updated on subsequent swaps as manipulating
     /// the instantaneous price does not materially affect the TWAP, especially when using clamped pricing.
-    function _updateAndUnlock(
-        Slot0 storage sSlot0,
+    function _update(
         uint256 aBalance0,
         uint256 aBalance1,
         uint256 aReserve0,
         uint256 aReserve1,
-        uint32 aBlockTimestampLast
+        uint32 aBlockTimestampLast,
+        uint16 aIndex
     ) internal {
         require(aBalance0 <= type(uint104).max && aBalance1 <= type(uint104).max, "RP: OVERFLOW");
         require(aReserve0 <= type(uint104).max && aReserve1 <= type(uint104).max, "RP: OVERFLOW");
 
-        uint32 lBlockTimestamp = _currentTime();
+        uint32 lBlockTimestamp = uint32(block.timestamp); // invalid after year 2106
         uint32 lTimeElapsed;
         unchecked {
             // underflow is desired
-            // however in the case where no swaps happen in ~68 years (2 ** 31 seconds) the timeElapsed would underflow twice
+            // however in the case where no swaps happen in ~68 years (2 ** 31 seconds) the timeElapsed would underflow
+            // twice
             lTimeElapsed = lBlockTimestamp - aBlockTimestampLast;
 
-            // both balance should never be zero, but necessary to check so we don't pass 0 values into arithmetic operations
+            // both balance should never be zero, but necessary to check so we don't pass 0 values into arithmetic
+            // operations
             // shortcut to calculate aBalance0 > 0 && aBalance1 > 0
             if (aBalance0 * aBalance1 > 0) {
-                Observation storage lPrevious = _observations[sSlot0.index];
+                Observation storage lPrevious = _observations[aIndex];
                 (uint256 lInstantRawPrice, int256 lLogInstantRawPrice) = _calcSpotAndLogPrice(aBalance0, aBalance1);
 
                 // a new sample is not written for the first mint
@@ -177,10 +145,11 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
                         aBlockTimestampLast // assert: aBlockTimestampLast == lPrevious.timestamp
                     );
                     _updateOracleNewSample(
-                        sSlot0, lPrevious, lLogInstantRawPrice, lLogInstantClampedPrice, lTimeElapsed, lBlockTimestamp
+                        lPrevious, lLogInstantRawPrice, lLogInstantClampedPrice, lTimeElapsed, lBlockTimestamp, aIndex
                     );
                 } else {
-                    // for instant price updates in the same timestamp, we use the time difference from the previous oracle observation as the time elapsed
+                    // for instant price updates in the same timestamp, we use the time difference from the previous
+                    // oracle observation as the time elapsed
                     lTimeElapsed = lBlockTimestamp - lPrevious.timestamp;
 
                     (, int256 lLogInstantClampedPrice) = _calcClampedPrice(
@@ -197,9 +166,9 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
         }
 
         // update reserves to match latest balances
-        sSlot0.reserve0 = uint104(aBalance0);
-        sSlot0.reserve1 = uint104(aBalance1);
-        _writeSlot0Timestamp(sSlot0, lBlockTimestamp, false);
+        _slot0.reserve0 = uint104(aBalance0);
+        _slot0.reserve1 = uint104(aBalance1);
+        _slot0.timestamp = lBlockTimestamp;
 
         emit Sync(uint104(aBalance0), uint104(aBalance1));
     }
@@ -213,25 +182,24 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
 
         rReserve0 = lSlot0.reserve0;
         rReserve1 = lSlot0.reserve1;
-        (rBlockTimestampLast,) = _splitSlot0Timestamp(lSlot0.packedTimestamp);
+        rBlockTimestampLast = lSlot0.timestamp;
         rIndex = lSlot0.index;
     }
 
     /// @notice Force reserves to match balances.
-    function sync() external {
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
+    function sync() external nonReentrant {
+        (uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast, uint16 lIndex) = getReserves();
         (lReserve0, lReserve1) = _syncManaged(lReserve0, lReserve1);
 
-        _updateAndUnlock(sSlot0, _totalToken0(), _totalToken1(), lReserve0, lReserve1, lBlockTimestampLast);
+        _update(_totalToken0(), _totalToken1(), lReserve0, lReserve1, lBlockTimestampLast, lIndex);
     }
 
     /// @notice Force balances to match reserves.
-    function skim(address aTo) external {
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
+    function skim(address aTo) external nonReentrant {
+        (uint256 lReserve0, uint256 lReserve1,,) = getReserves();
 
         _checkedTransfer(token0(), aTo, _totalToken0() - lReserve0, lReserve0, lReserve1);
         _checkedTransfer(token1(), aTo, _totalToken1() - lReserve1, lReserve0, lReserve1);
-        _unlock(sSlot0, lBlockTimestampLast);
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -582,22 +550,23 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20 {
     }
 
     function _updateOracleNewSample(
-        Slot0 storage aSlot0,
         Observation storage aPrevious,
         int256 aLogInstantRawPrice,
         int256 aLogInstantClampedPrice,
         uint32 aTimeElapsed,
-        uint32 aCurrentTimestamp
+        uint32 aCurrentTimestamp,
+        uint16 aIndex
     ) internal {
-        // overflow is desired here as the consumer of the oracle will be reading the difference in those accumulated log values
+        // overflow is desired here as the consumer of the oracle will be reading the difference in those accumulated
+        // log values
         // when the index overflows it will overwrite the oldest observation to form a loop
         unchecked {
             int88 logAccRawPrice =
                 aPrevious.logAccRawPrice + aPrevious.logInstantRawPrice * int88(int256(uint256(aTimeElapsed)));
             int88 logAccClampedPrice =
                 aPrevious.logAccClampedPrice + aPrevious.logInstantClampedPrice * int88(int256(uint256(aTimeElapsed)));
-            aSlot0.index = aSlot0.index.next();
-            _observations[aSlot0.index] = Observation(
+            _slot0.index = aIndex.next();
+            _observations[_slot0.index] = Observation(
                 int24(aLogInstantRawPrice),
                 int24(aLogInstantClampedPrice),
                 logAccRawPrice,

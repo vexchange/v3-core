@@ -5,6 +5,7 @@ import "test/__fixtures/BaseTest.sol";
 import "test/__fixtures/MintableERC20.sol";
 
 import { BytesLib } from "test/helpers/BytesLib.sol";
+import { Ownable } from "@openzeppelin/access/Ownable.sol";
 
 contract GenericFactoryTest is BaseTest {
     using BytesLib for bytes;

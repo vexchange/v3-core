@@ -7,9 +7,8 @@ import { stdStorage } from "forge-std/Test.sol";
 import { MintableERC20 } from "test/__fixtures/MintableERC20.sol";
 import { AssetManager } from "test/__mocks/AssetManager.sol";
 
-import { Uint31Lib } from "src/libraries/Uint31Lib.sol";
 import { LogCompression } from "src/libraries/LogCompression.sol";
-import { Observation } from "src/ReservoirPair.sol";
+import { Observation, RGT } from "src/ReservoirPair.sol";
 import { IERC20 } from "src/GenericFactory.sol";
 import { ConstantProductPair, IReservoirCallee } from "src/curve/constant-product/ConstantProductPair.sol";
 
@@ -153,7 +152,7 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
 
         // act
         MintableERC20(lToken0).mint(address(_constantProductPair), 1e18);
-        vm.expectRevert("REENTRANCY");
+        vm.expectRevert(RGT.Reentrancy.selector);
         _constantProductPair.swap(1e18, true, address(this), bytes(hex"00"));
     }
 
@@ -324,14 +323,14 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
 
         assertApproxEqRel(
             LogCompression.fromLowResLog(
-                (lObs1.logAccRawPrice - lObs0.logAccRawPrice) / int32(Uint31Lib.sub(lObs1.timestamp, lObs0.timestamp))
+                (lObs1.logAccRawPrice - lObs0.logAccRawPrice) / int32(lObs1.timestamp - lObs0.timestamp)
             ),
             lPrice1,
             0.0001e18
         );
         assertApproxEqRel(
             LogCompression.fromLowResLog(
-                (lObs2.logAccRawPrice - lObs0.logAccRawPrice) / int32(Uint31Lib.sub(lObs2.timestamp, lObs0.timestamp))
+                (lObs2.logAccRawPrice - lObs0.logAccRawPrice) / int32(lObs2.timestamp - lObs0.timestamp)
             ),
             Math.sqrt(lPrice1 * lPrice2),
             0.0001e18
@@ -411,7 +410,7 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
         // Price for observation window 0-1
         assertApproxEqRel(
             LogCompression.fromLowResLog(
-                (lObs1.logAccRawPrice - lObs0.logAccRawPrice) / int32(Uint31Lib.sub(lObs1.timestamp, lObs0.timestamp))
+                (lObs1.logAccRawPrice - lObs0.logAccRawPrice) / int32(lObs1.timestamp - lObs0.timestamp)
             ),
             4e18,
             0.0001e18
@@ -419,7 +418,7 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
         // Price for observation window 1-2
         assertApproxEqRel(
             LogCompression.fromLowResLog(
-                (lObs2.logAccRawPrice - lObs1.logAccRawPrice) / int32(Uint31Lib.sub(lObs2.timestamp, lObs1.timestamp))
+                (lObs2.logAccRawPrice - lObs1.logAccRawPrice) / int32(lObs2.timestamp - lObs1.timestamp)
             ),
             16e18,
             0.0001e18
@@ -427,7 +426,7 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
         // Price for observation window 0-2
         assertApproxEqRel(
             LogCompression.fromLowResLog(
-                (lObs2.logAccRawPrice - lObs0.logAccRawPrice) / int32(Uint31Lib.sub(lObs2.timestamp, lObs0.timestamp))
+                (lObs2.logAccRawPrice - lObs0.logAccRawPrice) / int32(lObs2.timestamp - lObs0.timestamp)
             ),
             8e18,
             0.0001e18

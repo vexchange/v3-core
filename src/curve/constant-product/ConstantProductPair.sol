@@ -11,7 +11,7 @@ import { ConstantProductOracleMath } from "src/libraries/ConstantProductOracleMa
 import { IReservoirCallee } from "src/interfaces/IReservoirCallee.sol";
 import { IGenericFactory, IERC20 } from "src/interfaces/IGenericFactory.sol";
 
-import { ReservoirPair, Slot0 } from "src/ReservoirPair.sol";
+import { ReservoirPair } from "src/ReservoirPair.sol";
 
 contract ConstantProductPair is ReservoirPair {
     using FactoryStoreLib for IGenericFactory;
@@ -81,7 +81,7 @@ contract ConstantProductPair is ReservoirPair {
 
             if (lSqrtNewK > lSqrtOldK) {
                 // input arguments fulfill invariants for _calcFee
-                uint256 lSharesToIssue = _calcFee(lSqrtNewK, lSqrtOldK, platformFee, totalSupply);
+                uint256 lSharesToIssue = _calcFee(lSqrtNewK, lSqrtOldK, platformFee, totalSupply());
 
                 if (lSharesToIssue > 0) {
                     address platformFeeTo = factory.read(PLATFORM_FEE_TO_NAME).toAddress();
@@ -91,8 +91,8 @@ contract ConstantProductPair is ReservoirPair {
         }
     }
 
-    function mint(address aTo) external override returns (uint256 rLiquidity) {
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
+    function mint(address aTo) external override nonReentrant returns (uint256 rLiquidity) {
+        (uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast, uint16 lIndex) = getReserves();
         (lReserve0, lReserve1) = _syncManaged(uint104(lReserve0), uint104(lReserve1)); // check asset-manager pnl
 
         uint256 lBalance0 = _totalToken0();
@@ -101,7 +101,7 @@ contract ConstantProductPair is ReservoirPair {
         uint256 lAmount1 = lBalance1 - lReserve1;
 
         _mintFee(lReserve0, lReserve1);
-        uint256 lTotalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
+        uint256 lTotalSupply = totalSupply(); // gas savings, must be defined here since totalSupply can update in _mintFee
         if (lTotalSupply == 0) {
             rLiquidity = FixedPointMathLib.sqrt(lAmount0 * lAmount1) - MINIMUM_LIQUIDITY;
             _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
@@ -118,19 +118,19 @@ contract ConstantProductPair is ReservoirPair {
         kLast = lBalance0 * lBalance1;
         emit Mint(msg.sender, lAmount0, lAmount1);
 
-        _updateAndUnlock(sSlot0, lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast);
+        _update(lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast, lIndex);
         _managerCallback();
     }
 
-    function burn(address aTo) external override returns (uint256 rAmount0, uint256 rAmount1) {
+    function burn(address aTo) external override nonReentrant returns (uint256 rAmount0, uint256 rAmount1) {
         // NB: Must sync management PNL before we load reserves.
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
+        (uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast, uint16 lIndex) = getReserves();
         (lReserve0, lReserve1) = _syncManaged(uint104(lReserve0), uint104(lReserve1)); // check asset-manager pnl
 
-        uint256 liquidity = balanceOf[address(this)];
+        uint256 liquidity = balanceOf(address(this));
 
         _mintFee(lReserve0, lReserve1);
-        uint256 lTotalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
+        uint256 lTotalSupply = totalSupply(); // gas savings, must be defined here since totalSupply can update in _mintFee
         rAmount0 = liquidity * _totalToken0() / lTotalSupply; // using balances ensures pro-rata distribution
         rAmount1 = liquidity * _totalToken1() / lTotalSupply; // using balances ensures pro-rata distribution
         _burn(address(this), liquidity);
@@ -145,16 +145,17 @@ contract ConstantProductPair is ReservoirPair {
         kLast = lBalance0 * lBalance1;
         emit Burn(msg.sender, rAmount0, rAmount1);
 
-        _updateAndUnlock(sSlot0, lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast);
+        _update(lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast, lIndex);
         _managerCallback();
     }
 
     function swap(int256 aAmount, bool aExactIn, address aTo, bytes calldata aData)
         external
         override
+        nonReentrant
         returns (uint256 rAmountOut)
     {
-        (Slot0 storage sSlot0, uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast,) = _lockAndLoad();
+        (uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast, uint16 lIndex) = getReserves();
         require(aAmount != 0, "CP: AMOUNT_ZERO");
         uint256 lAmountIn;
         IERC20 lTokenOut;
@@ -215,7 +216,7 @@ contract ConstantProductPair is ReservoirPair {
         uint256 lReceived = lTokenOut == token0() ? lBalance1 - lReserve1 : lBalance0 - lReserve0;
         require(lAmountIn <= lReceived, "CP: INSUFFICIENT_AMOUNT_IN");
 
-        _updateAndUnlock(sSlot0, lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast);
+        _update(lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast, lIndex);
         emit Swap(msg.sender, lTokenOut == token1(), lReceived, rAmountOut, aTo);
     }
 

@@ -2,6 +2,7 @@ pragma solidity ^0.8.0;
 
 import "test/__fixtures/BaseTest.sol";
 
+import { SafeCast } from "@openzeppelin/utils/math/SafeCast.sol";
 import { MathUtils } from "src/libraries/MathUtils.sol";
 import { ReservoirPair, IERC20 } from "src/ReservoirPair.sol";
 import { AssetManager } from "test/__mocks/AssetManager.sol";
@@ -102,7 +103,7 @@ contract AssetManagedPairTest is BaseTest {
         _pair.setManager(AssetManager(address(this)));
 
         // act & assert
-        vm.expectRevert("SafeCast: value doesn't fit in 104 bits");
+        vm.expectPartialRevert(SafeCast.SafeCastOverflowedUintDowncast.selector);
         _pair.adjustManagement(0, int256(uint256(type(uint104).max)) + 1);
     }
 

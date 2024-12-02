@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import { ReentrancyGuard } from "solmate/utils/ReentrancyGuard.sol";
+import { ReentrancyGuardTransient as RGT } from "solady/utils/ReentrancyGuardTransient.sol";
 import { Owned } from "solmate/auth/Owned.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
@@ -13,7 +13,7 @@ import { IAssetManager, IERC20 } from "src/interfaces/IAssetManager.sol";
 import { IDistributor } from "src/interfaces/merkl/IDistributor.sol";
 import { IERC4626 } from "lib/forge-std/src/interfaces/IERC4626.sol";
 
-contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
+contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
     using FixedPointMathLib for uint256;
     using SafeCast for uint256;
 
@@ -97,7 +97,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), ReentrancyGuard {
         onlyOwner
         returns (bytes memory)
     {
-        return Address.functionCallWithValue(aTarget, aCalldata, aValue, "AM: RAW_CALL_REVERTED");
+        return Address.functionCallWithValue(aTarget, aCalldata, aValue);
     }
     /*//////////////////////////////////////////////////////////////////////////
                                 HELPER FUNCTIONS
