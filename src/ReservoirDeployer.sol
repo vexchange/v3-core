@@ -18,7 +18,7 @@ contract ReservoirDeployer {
     // Bytecode hashes.
     bytes32 public constant FACTORY_HASH = bytes32(0x0db8f8ce65b005ea292997e29624bc897bfc5a849c5a6a069573230b4062b31a);
     bytes32 public constant CONSTANT_PRODUCT_HASH =
-        bytes32(0x887448f929cbfed6d5198a67c1239a97902c96671cedd1b575045c447d4e407e);
+        bytes32(0x2c513f28b14f3af64a2632e3cee1510b324312932c1b5d146db6db5fff964cfd);
     bytes32 public constant STABLE_HASH = bytes32(0xa06981175eba9eacbd8997bb13e6b799076c1f67bf0c71d4a5bc8be7863655a2);
 
     // Deployment addresses.
