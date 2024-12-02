@@ -30,7 +30,6 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
-      - run: forge remappings
       - run: npm run test:unit
 
   test-integration:
