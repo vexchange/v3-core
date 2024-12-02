@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import { SafeCast } from "@openzeppelin/utils/math/SafeCast.sol";
-import { ReentrancyGuardTransient as RGT } from "@openzeppelin/utils/ReentrancyGuardTransient.sol";
+import { ReentrancyGuardTransient as RGT } from "solady/utils/ReentrancyGuardTransient.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
@@ -90,6 +90,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     function token1PrecisionMultiplier() public view virtual returns (uint128) {
         return _token1PrecisionMultiplier;
     }
+
+    function _useTransientReentrancyGuardOnlyOnMainnet() internal pure override returns (bool) { return false; }
 
     /*//////////////////////////////////////////////////////////////////////////
 

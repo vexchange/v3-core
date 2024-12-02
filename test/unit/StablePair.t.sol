@@ -8,11 +8,10 @@ import { MathUtils } from "src/libraries/MathUtils.sol";
 import { LogCompression } from "src/libraries/LogCompression.sol";
 import { StableOracleMath } from "src/libraries/StableOracleMath.sol";
 import { StableMath } from "src/libraries/StableMath.sol";
-import { Observation } from "src/ReservoirPair.sol";
+import { Observation, RGT } from "src/ReservoirPair.sol";
 import { StablePair } from "src/curve/stable/StablePair.sol";
 import { GenericFactory, IERC20 } from "src/GenericFactory.sol";
 import { AssetManagerReenter } from "test/__mocks/AssetManagerReenter.sol";
-import { ReentrancyGuardTransient } from "../../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuardTransient.sol";
 
 contract StablePairTest is BaseTest {
     using FactoryStoreLib for GenericFactory;
@@ -93,7 +92,7 @@ contract StablePairTest is BaseTest {
         _stablePair.setManager(_reenter);
 
         // act & assert
-        vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
+        vm.expectRevert(RGT.Reentrancy.selector);
         _stablePair.mint(address(this));
     }
 
@@ -451,7 +450,7 @@ contract StablePairTest is BaseTest {
 
         // act
         MintableERC20(lToken0).mint(address(_stablePair), 1e18);
-        vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
+        vm.expectRevert(RGT.Reentrancy.selector);
         _stablePair.swap(1e18, true, address(this), bytes(hex"00"));
     }
 
@@ -837,7 +836,7 @@ contract StablePairTest is BaseTest {
         _stablePair.setManager(_reenter);
 
         // act & assert
-        vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
+        vm.expectRevert(RGT.Reentrancy.selector);
         _stablePair.burn(address(this));
     }
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import { ReentrancyGuardTransient as RGT } from "@openzeppelin/utils/ReentrancyGuardTransient.sol";
+import { ReentrancyGuardTransient as RGT } from "solady/utils/ReentrancyGuardTransient.sol";
 import { Ownable } from "@openzeppelin/access/Ownable.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
