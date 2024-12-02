@@ -1,7 +1,7 @@
 [profile.default]
 solc = "0.8.28"
 evm_version = "cancun"
-#via_ir = true
+via_ir = true
 bytecode_hash = "ipfs"
 optimizer_runs = 1_000_000
 gas_limit = "18446744073709551615"
@@ -16,6 +16,7 @@ fs_permissions = [
     { access = "write", path = "./script/optimized-deployer-meta" },
     { access = "write", path = "./script/unoptimized-deployer-meta" },
 ]
+ignored_error_codes = []
 
 [profile.default.fuzz]
 seed = "0xd679d565cc78d6c78308f18282cb070e065bf4c517fbd552922d47f2127a2bbc"

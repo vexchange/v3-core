@@ -9,17 +9,17 @@ import { SSTORE2 } from "solady/utils/SSTORE2.sol";
 import { Bytes32Lib } from "src/libraries/Bytes32.sol";
 
 import { IGenericFactory, IERC20 } from "src/interfaces/IGenericFactory.sol";
-import { StableMintBurn } from "src/curve/stable/StableMintBurn.sol";
+//import { StableMintBurn } from "src/curve/stable/StableMintBurn.sol";
 
 uint256 constant MAX_SSTORE_SIZE = 0x6000 - 1;
 
 contract GenericFactory is IGenericFactory, Owned {
     using Bytes32Lib for address;
 
-    StableMintBurn public immutable stableMintBurn;
+//    StableMintBurn public immutable stableMintBurn;
 
     constructor() Owned(msg.sender) {
-        stableMintBurn = new StableMintBurn{ salt: bytes32(0) }();
+//        stableMintBurn = new StableMintBurn{ salt: bytes32(0) }();
     }
 
     /*//////////////////////////////////////////////////////////////////////////

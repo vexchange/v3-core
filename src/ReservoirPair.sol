@@ -34,27 +34,44 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
 
     IGenericFactory public immutable factory;
 
+    error Forbidden();
+
+
+error Overflow();
+error InvalidSwapFee();
+error InvalidPlatformFee();
+error InvalidTokenToRecover();
+error TransferFailed();
+error AssetManagerStillActive();
+error NotManager();
+error InvalidSkimToken();
+error InvalidChangePerSecond();
+error InvalidChangePerTrade();
+
+
     modifier onlyFactory() {
-        require(msg.sender == address(factory), "RP: FORBIDDEN");
+        require(msg.sender == address(factory), Forbidden());
         _;
     }
 
-    constructor(IERC20 aToken0, IERC20 aToken1, string memory aSwapFeeName, bool aNotStableMintBurn) {
+    constructor(IERC20 aToken0, IERC20 aToken1, string memory aSwapFeeName
+//        bool aNotStableMintBurn
+    ) {
         factory = IGenericFactory(msg.sender);
         _token0 = aToken0;
         _token1 = aToken1;
 
-        _token0PrecisionMultiplier = aNotStableMintBurn ? uint128(10) ** (18 - aToken0.decimals()) : 0;
-        _token1PrecisionMultiplier = aNotStableMintBurn ? uint128(10) ** (18 - aToken1.decimals()) : 0;
+        _token0PrecisionMultiplier = uint128(10) ** (18 - aToken0.decimals()) ;
+        _token1PrecisionMultiplier = uint128(10) ** (18 - aToken1.decimals()) ;
         swapFeeName = keccak256(bytes(aSwapFeeName));
 
-        if (aNotStableMintBurn) {
-            updateSwapFee();
-            updatePlatformFee();
-            setClampParams(
-                factory.read(MAX_CHANGE_RATE_NAME).toUint128(), factory.read(MAX_CHANGE_PER_TRADE_NAME).toUint128()
-            );
-        }
+//        if (aNotStableMintBurn) {
+//            updateSwapFee();
+//            updatePlatformFee();
+//            setClampParams(
+//                factory.read(MAX_CHANGE_RATE_NAME).toUint128(), factory.read(MAX_CHANGE_PER_TRADE_NAME).toUint128()
+//            );
+//        }
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -116,8 +133,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         uint32 aBlockTimestampLast,
         uint16 aIndex
     ) internal {
-        require(aBalance0 <= type(uint104).max && aBalance1 <= type(uint104).max, "RP: OVERFLOW");
-        require(aReserve0 <= type(uint104).max && aReserve1 <= type(uint104).max, "RP: OVERFLOW");
+        require(aBalance0 <= type(uint104).max && aBalance1 <= type(uint104).max, Overflow());
+        require(aReserve0 <= type(uint104).max && aReserve1 <= type(uint104).max, Overflow());
 
         uint32 lBlockTimestamp = uint32(block.timestamp); // invalid after year 2106
         uint32 lTimeElapsed;
@@ -251,7 +268,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         uint256 _swapFee = customSwapFee != type(uint256).max ? customSwapFee : factory.get(swapFeeName).toUint256();
         if (_swapFee == swapFee) return;
 
-        require(_swapFee <= MAX_SWAP_FEE, "RP: INVALID_SWAP_FEE");
+        require(_swapFee <= MAX_SWAP_FEE, InvalidSwapFee());
 
         emit SwapFee(_swapFee);
         swapFee = _swapFee;
@@ -262,14 +279,14 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
             customPlatformFee != type(uint256).max ? customPlatformFee : factory.read(PLATFORM_FEE_NAME).toUint256();
         if (_platformFee == platformFee) return;
 
-        require(_platformFee <= MAX_PLATFORM_FEE, "RP: INVALID_PLATFORM_FEE");
+        require(_platformFee <= MAX_PLATFORM_FEE, InvalidPlatformFee());
 
         emit PlatformFee(_platformFee);
         platformFee = _platformFee;
     }
 
     function recoverToken(IERC20 aToken) external {
-        require(aToken != token0() && aToken != token1(), "RP: INVALID_TOKEN_TO_RECOVER");
+        require(aToken != token0() && aToken != token1(), InvalidTokenToRecover());
         address _recoverer = factory.read(RECOVERER_NAME).toAddress();
         uint256 _amountToRecover = aToken.balanceOf(address(this));
 
@@ -304,9 +321,9 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
 
             if (lReserveOut - lTokenOutManaged < aAmount) {
                 assetManager.returnAsset(lIsToken0, aAmount - (lReserveOut - lTokenOutManaged));
-                require(_safeTransfer(aToken, aDestination, aAmount), "RP: TRANSFER_FAILED");
+                require(_safeTransfer(aToken, aDestination, aAmount), TransferFailed());
             } else {
-                revert("RP: TRANSFER_FAILED");
+                revert TransferFailed();
             }
         }
     }
@@ -356,7 +373,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     IAssetManager public assetManager;
 
     function setManager(IAssetManager manager) external onlyFactory {
-        require(token0Managed == 0 && token1Managed == 0, "RP: AM_STILL_ACTIVE");
+        require(token0Managed == 0 && token1Managed == 0, AssetManagerStillActive());
         assetManager = manager;
         emit AssetManager(manager);
     }
@@ -426,7 +443,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     }
 
     function adjustManagement(int256 aToken0Change, int256 aToken1Change) external {
-        require(msg.sender == address(assetManager), "RP: AUTH_NOT_MANAGER");
+        require(msg.sender == address(assetManager), NotManager());
 
         if (aToken0Change > 0) {
             uint104 lDelta = uint256(aToken0Change).toUint104();
@@ -461,7 +478,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     }
 
     function skimExcessManaged(IERC20 aToken) external returns (uint256 rAmtSkimmed) {
-        require(aToken == token0() || aToken == token1(), "RP: INVALID_SKIM_TOKEN");
+        require(aToken == token0() || aToken == token1(), InvalidSkimToken());
         uint256 lTokenAmtManaged = assetManager.getBalance(this, aToken);
 
         if (lTokenAmtManaged > type(uint104).max) {
@@ -506,8 +523,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     uint128 public maxChangePerTrade;
 
     function setClampParams(uint128 aMaxChangeRate, uint128 aMaxChangePerTrade) public onlyFactory {
-        require(0 < aMaxChangeRate && aMaxChangeRate <= MAX_CHANGE_PER_SEC, "RP: INVALID_CHANGE_PER_SECOND");
-        require(0 < aMaxChangePerTrade && aMaxChangePerTrade <= MAX_CHANGE_PER_TRADE, "RP: INVALID_CHANGE_PER_TRADE");
+        require(0 < aMaxChangeRate && aMaxChangeRate <= MAX_CHANGE_PER_SEC, InvalidChangePerSecond());
+        require(0 < aMaxChangePerTrade && aMaxChangePerTrade <= MAX_CHANGE_PER_TRADE, InvalidChangePerTrade());
 
         emit ClampParamsUpdated(aMaxChangeRate, aMaxChangePerTrade);
         maxChangeRate = aMaxChangeRate;
