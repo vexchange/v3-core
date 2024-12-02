@@ -91,7 +91,9 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         return _token1PrecisionMultiplier;
     }
 
-    function _useTransientReentrancyGuardOnlyOnMainnet() internal pure override returns (bool) { return false; }
+    function _useTransientReentrancyGuardOnlyOnMainnet() internal pure override returns (bool) {
+        return false;
+    }
 
     /*//////////////////////////////////////////////////////////////////////////
 
@@ -102,7 +104,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     Slot0 internal _slot0 = Slot0({ reserve0: 0, reserve1: 0, timestamp: 0, index: Buffer.SIZE - 1 });
 
     /// @notice Updates reserves with new balances.
-    /// @notice On the first call per block, accumulate price oracle using previous instant prices and write the new instant prices.
+    /// @notice On the first call per block, accumulate price oracle using previous instant prices and write the new
+    /// instant prices.
     /// @dev The price is not updated on subsequent swaps as manipulating
     /// the instantaneous price does not materially affect the TWAP, especially when using clamped pricing.
     function _update(
@@ -120,10 +123,12 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         uint32 lTimeElapsed;
         unchecked {
             // underflow is desired
-            // however in the case where no swaps happen in ~68 years (2 ** 31 seconds) the timeElapsed would underflow twice
+            // however in the case where no swaps happen in ~68 years (2 ** 31 seconds) the timeElapsed would underflow
+            // twice
             lTimeElapsed = lBlockTimestamp - aBlockTimestampLast;
 
-            // both balance should never be zero, but necessary to check so we don't pass 0 values into arithmetic operations
+            // both balance should never be zero, but necessary to check so we don't pass 0 values into arithmetic
+            // operations
             // shortcut to calculate aBalance0 > 0 && aBalance1 > 0
             if (aBalance0 * aBalance1 > 0) {
                 Observation storage lPrevious = _observations[aIndex];
@@ -143,7 +148,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
                         lPrevious, lLogInstantRawPrice, lLogInstantClampedPrice, lTimeElapsed, lBlockTimestamp, aIndex
                     );
                 } else {
-                    // for instant price updates in the same timestamp, we use the time difference from the previous oracle observation as the time elapsed
+                    // for instant price updates in the same timestamp, we use the time difference from the previous
+                    // oracle observation as the time elapsed
                     lTimeElapsed = lBlockTimestamp - lPrevious.timestamp;
 
                     (, int256 lLogInstantClampedPrice) = _calcClampedPrice(
@@ -190,7 +196,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
 
     /// @notice Force balances to match reserves.
     function skim(address aTo) external nonReentrant {
-        (uint256 lReserve0, uint256 lReserve1, ,) = getReserves();
+        (uint256 lReserve0, uint256 lReserve1,,) = getReserves();
 
         _checkedTransfer(token0(), aTo, _totalToken0() - lReserve0, lReserve0, lReserve1);
         _checkedTransfer(token1(), aTo, _totalToken1() - lReserve1, lReserve0, lReserve1);
@@ -551,7 +557,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         uint32 aCurrentTimestamp,
         uint16 aIndex
     ) internal {
-        // overflow is desired here as the consumer of the oracle will be reading the difference in those accumulated log values
+        // overflow is desired here as the consumer of the oracle will be reading the difference in those accumulated
+        // log values
         // when the index overflows it will overwrite the oldest observation to form a loop
         unchecked {
             int88 logAccRawPrice =

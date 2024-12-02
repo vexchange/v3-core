@@ -121,7 +121,7 @@ contract GenericFactoryTest is BaseTest {
         vm.prank(_alice);
 
         // act & assert
-        vm.expectPartialRevert(Ownable.OwnableUnauthorizedAccount.selector);
+        vm.expectRevert("UNAUTHORIZED");
         _factory.addCurve(bytes("random bytes"));
     }
 
