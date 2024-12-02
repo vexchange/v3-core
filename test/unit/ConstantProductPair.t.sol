@@ -101,7 +101,7 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
         _tokenC.mint(address(lPair), 1000);
 
         // act & assert
-        vm.expectRevert("CP: INSUFFICIENT_LIQ_MINTED");
+        vm.expectRevert(ReservoirPair.InsufficientLiqMinted.selector);
         lPair.mint(address(this));
     }
 
@@ -191,16 +191,16 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
 
     function testSwap_ExactOutExceedReserves() public {
         // act & assert
-        vm.expectRevert("CP: NOT_ENOUGH_LIQ");
+        vm.expectRevert(ReservoirPair.InsufficientLiq.selector);
         _constantProductPair.swap(int256(Constants.INITIAL_MINT_AMOUNT), false, address(this), bytes(""));
 
-        vm.expectRevert("CP: NOT_ENOUGH_LIQ");
+        vm.expectRevert(ReservoirPair.InsufficientLiq.selector);
         _constantProductPair.swap(int256(Constants.INITIAL_MINT_AMOUNT + 1), false, address(this), bytes(""));
 
-        vm.expectRevert("CP: NOT_ENOUGH_LIQ");
+        vm.expectRevert(ReservoirPair.InsufficientLiq.selector);
         _constantProductPair.swap(-int256(Constants.INITIAL_MINT_AMOUNT), false, address(this), bytes(""));
 
-        vm.expectRevert("CP: NOT_ENOUGH_LIQ");
+        vm.expectRevert(ReservoirPair.InsufficientLiq.selector);
         _constantProductPair.swap(-int256(Constants.INITIAL_MINT_AMOUNT + 1), false, address(this), bytes(""));
     }
 
@@ -240,7 +240,7 @@ contract ConstantProductPairTest is BaseTest, IReservoirCallee {
 
         // act & assert
         _tokenA.mint(address(_constantProductPair), lAmountIn);
-        vm.expectRevert("RP: OVERFLOW");
+        vm.expectRevert(ReservoirPair.Overflow.selector);
         _constantProductPair.swap(-int256(lAmountOut), false, address(this), bytes(""));
     }
 

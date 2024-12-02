@@ -32,63 +32,52 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     uint256 public constant MINIMUM_LIQUIDITY = 1e3;
     uint256 public constant FEE_ACCURACY = 1_000_000; // 100%
 
-    IGenericFactory public immutable factory;
-
-    modifier onlyFactory() {
-        require(msg.sender == address(factory), "RP: FORBIDDEN");
-        _;
-    }
-
-    constructor(IERC20 aToken0, IERC20 aToken1, string memory aSwapFeeName, bool aNotStableMintBurn) {
-        factory = IGenericFactory(msg.sender);
-        _token0 = aToken0;
-        _token1 = aToken1;
-
-        _token0PrecisionMultiplier = aNotStableMintBurn ? uint128(10) ** (18 - aToken0.decimals()) : 0;
-        _token1PrecisionMultiplier = aNotStableMintBurn ? uint128(10) ** (18 - aToken1.decimals()) : 0;
-        swapFeeName = keccak256(bytes(aSwapFeeName));
-
-        if (aNotStableMintBurn) {
-            updateSwapFee();
-            updatePlatformFee();
-            setClampParams(
-                factory.read(MAX_CHANGE_RATE_NAME).toUint128(), factory.read(MAX_CHANGE_PER_TRADE_NAME).toUint128()
-            );
-        }
-    }
-
-    /*//////////////////////////////////////////////////////////////////////////
-
-                                IMMUTABLE GETTERS
-
-    Allows StableMintBurn to override the immutables to instead make a call to
-    address(this) so the action is delegatecall safe.
-
-    //////////////////////////////////////////////////////////////////////////*/
-
-    IERC20 internal immutable _token0;
-    IERC20 internal immutable _token1;
+    IERC20 public immutable token0;
+    IERC20 public immutable token1;
 
     // Multipliers for each pooled token's precision to get to POOL_PRECISION_DECIMALS. For example,
     // TBTC has 18 decimals, so the multiplier should be 1. WBTC has 8, so the multiplier should be
     // 10 ** 18 / 10 ** 8 => 10 ** 10.
-    uint128 internal immutable _token0PrecisionMultiplier;
-    uint128 internal immutable _token1PrecisionMultiplier;
+    uint128 public immutable token0PrecisionMultiplier;
+    uint128 public immutable token1PrecisionMultiplier;
 
-    function token0() public view virtual returns (IERC20) {
-        return _token0;
+    IGenericFactory public immutable factory;
+
+    error Forbidden();
+    error Overflow();
+    error InvalidSwapFee();
+    error InvalidPlatformFee();
+    error InvalidTokenToRecover();
+    error TransferFailed();
+    error AssetManagerStillActive();
+    error NotManager();
+    error InvalidSkimToken();
+    error InvalidChangePerSecond();
+    error InvalidChangePerTrade();
+    error AmountZero();
+    error InsufficientLiqMinted();
+    error InsufficientLiq();
+    error InsufficientAmtIn();
+
+    modifier onlyFactory() {
+        require(msg.sender == address(factory), Forbidden());
+        _;
     }
 
-    function token1() public view virtual returns (IERC20) {
-        return _token1;
-    }
+    constructor(IERC20 aToken0, IERC20 aToken1, string memory aSwapFeeName) {
+        factory = IGenericFactory(msg.sender);
+        token0 = aToken0;
+        token1 = aToken1;
 
-    function token0PrecisionMultiplier() public view virtual returns (uint128) {
-        return _token0PrecisionMultiplier;
-    }
+        token0PrecisionMultiplier = uint128(10) ** (18 - aToken0.decimals()) ;
+        token1PrecisionMultiplier = uint128(10) ** (18 - aToken1.decimals()) ;
+        swapFeeName = keccak256(bytes(aSwapFeeName));
 
-    function token1PrecisionMultiplier() public view virtual returns (uint128) {
-        return _token1PrecisionMultiplier;
+        updateSwapFee();
+        updatePlatformFee();
+        setClampParams(
+            factory.read(MAX_CHANGE_RATE_NAME).toUint128(), factory.read(MAX_CHANGE_PER_TRADE_NAME).toUint128()
+        );
     }
 
     function _useTransientReentrancyGuardOnlyOnMainnet() internal pure override returns (bool) {
@@ -116,8 +105,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         uint32 aBlockTimestampLast,
         uint16 aIndex
     ) internal {
-        require(aBalance0 <= type(uint104).max && aBalance1 <= type(uint104).max, "RP: OVERFLOW");
-        require(aReserve0 <= type(uint104).max && aReserve1 <= type(uint104).max, "RP: OVERFLOW");
+        require(aBalance0 <= type(uint104).max && aBalance1 <= type(uint104).max, Overflow());
+        require(aReserve0 <= type(uint104).max && aReserve1 <= type(uint104).max, Overflow());
 
         uint32 lBlockTimestamp = uint32(block.timestamp); // invalid after year 2106
         uint32 lTimeElapsed;
@@ -198,8 +187,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     function skim(address aTo) external nonReentrant {
         (uint256 lReserve0, uint256 lReserve1,,) = getReserves();
 
-        _checkedTransfer(token0(), aTo, _totalToken0() - lReserve0, lReserve0, lReserve1);
-        _checkedTransfer(token1(), aTo, _totalToken1() - lReserve1, lReserve0, lReserve1);
+        _checkedTransfer(token0, aTo, _totalToken0() - lReserve0, lReserve0, lReserve1);
+        _checkedTransfer(token1, aTo, _totalToken1() - lReserve1, lReserve0, lReserve1);
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -251,7 +240,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         uint256 _swapFee = customSwapFee != type(uint256).max ? customSwapFee : factory.get(swapFeeName).toUint256();
         if (_swapFee == swapFee) return;
 
-        require(_swapFee <= MAX_SWAP_FEE, "RP: INVALID_SWAP_FEE");
+        require(_swapFee <= MAX_SWAP_FEE, InvalidSwapFee());
 
         emit SwapFee(_swapFee);
         swapFee = _swapFee;
@@ -262,14 +251,14 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
             customPlatformFee != type(uint256).max ? customPlatformFee : factory.read(PLATFORM_FEE_NAME).toUint256();
         if (_platformFee == platformFee) return;
 
-        require(_platformFee <= MAX_PLATFORM_FEE, "RP: INVALID_PLATFORM_FEE");
+        require(_platformFee <= MAX_PLATFORM_FEE, InvalidPlatformFee());
 
         emit PlatformFee(_platformFee);
         platformFee = _platformFee;
     }
 
     function recoverToken(IERC20 aToken) external {
-        require(aToken != token0() && aToken != token1(), "RP: INVALID_TOKEN_TO_RECOVER");
+        require(aToken != token0 && aToken != token1, InvalidTokenToRecover());
         address _recoverer = factory.read(RECOVERER_NAME).toAddress();
         uint256 _amountToRecover = aToken.balanceOf(address(this));
 
@@ -298,15 +287,15 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         uint256 aReserve1
     ) internal {
         if (!_safeTransfer(aToken, aDestination, aAmount)) {
-            bool lIsToken0 = aToken == token0();
+            bool lIsToken0 = aToken == token0;
             uint256 lTokenOutManaged = lIsToken0 ? token0Managed : token1Managed;
             uint256 lReserveOut = lIsToken0 ? aReserve0 : aReserve1;
 
             if (lReserveOut - lTokenOutManaged < aAmount) {
                 assetManager.returnAsset(lIsToken0, aAmount - (lReserveOut - lTokenOutManaged));
-                require(_safeTransfer(aToken, aDestination, aAmount), "RP: TRANSFER_FAILED");
+                require(_safeTransfer(aToken, aDestination, aAmount), TransferFailed());
             } else {
-                revert("RP: TRANSFER_FAILED");
+                revert TransferFailed();
             }
         }
     }
@@ -356,7 +345,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     IAssetManager public assetManager;
 
     function setManager(IAssetManager manager) external onlyFactory {
-        require(token0Managed == 0 && token1Managed == 0, "RP: AM_STILL_ACTIVE");
+        require(token0Managed == 0 && token1Managed == 0, AssetManagerStillActive());
         assetManager = manager;
         emit AssetManager(manager);
     }
@@ -365,11 +354,11 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     uint104 public token1Managed;
 
     function _totalToken0() internal view returns (uint256) {
-        return token0().balanceOf(address(this)) + uint256(token0Managed);
+        return token0.balanceOf(address(this)) + uint256(token0Managed);
     }
 
     function _totalToken1() internal view returns (uint256) {
-        return token1().balanceOf(address(this)) + uint256(token1Managed);
+        return token1.balanceOf(address(this)) + uint256(token1Managed);
     }
 
     function _handleReport(IERC20 aToken, uint256 aReserve, uint256 aPrevBalance, uint256 aNewBalance)
@@ -404,8 +393,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
             return (aReserve0, aReserve1);
         }
 
-        IERC20 lToken0 = token0();
-        IERC20 lToken1 = token1();
+        IERC20 lToken0 = token0;
+        IERC20 lToken1 = token1;
 
         uint256 lToken0Managed = assetManager.getBalance(this, lToken0);
         uint256 lToken1Managed = assetManager.getBalance(this, lToken1);
@@ -426,21 +415,21 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     }
 
     function adjustManagement(int256 aToken0Change, int256 aToken1Change) external {
-        require(msg.sender == address(assetManager), "RP: AUTH_NOT_MANAGER");
+        require(msg.sender == address(assetManager), NotManager());
 
         if (aToken0Change > 0) {
             uint104 lDelta = uint256(aToken0Change).toUint104();
 
             token0Managed += lDelta;
 
-            address(token0()).safeTransfer(msg.sender, lDelta);
+            address(token0).safeTransfer(msg.sender, lDelta);
         } else if (aToken0Change < 0) {
             uint104 lDelta = uint256(-aToken0Change).toUint104();
 
             // solhint-disable-next-line reentrancy
             token0Managed -= lDelta;
 
-            address(token0()).safeTransferFrom(msg.sender, address(this), lDelta);
+            address(token0).safeTransferFrom(msg.sender, address(this), lDelta);
         }
 
         if (aToken1Change > 0) {
@@ -449,19 +438,19 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
             // solhint-disable-next-line reentrancy
             token1Managed += lDelta;
 
-            address(token1()).safeTransfer(msg.sender, lDelta);
+            address(token1).safeTransfer(msg.sender, lDelta);
         } else if (aToken1Change < 0) {
             uint104 lDelta = uint256(-aToken1Change).toUint104();
 
             // solhint-disable-next-line reentrancy
             token1Managed -= lDelta;
 
-            address(token1()).safeTransferFrom(msg.sender, address(this), lDelta);
+            address(token1).safeTransferFrom(msg.sender, address(this), lDelta);
         }
     }
 
     function skimExcessManaged(IERC20 aToken) external returns (uint256 rAmtSkimmed) {
-        require(aToken == token0() || aToken == token1(), "RP: INVALID_SKIM_TOKEN");
+        require(aToken == token0 || aToken == token1, InvalidSkimToken());
         uint256 lTokenAmtManaged = assetManager.getBalance(this, aToken);
 
         if (lTokenAmtManaged > type(uint104).max) {
@@ -469,7 +458,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
 
             rAmtSkimmed = lTokenAmtManaged - type(uint104).max;
 
-            assetManager.returnAsset(aToken == token0(), rAmtSkimmed);
+            assetManager.returnAsset(aToken == token0, rAmtSkimmed);
             address(aToken).safeTransfer(lRecoverer, rAmtSkimmed);
         }
     }
@@ -506,8 +495,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     uint128 public maxChangePerTrade;
 
     function setClampParams(uint128 aMaxChangeRate, uint128 aMaxChangePerTrade) public onlyFactory {
-        require(0 < aMaxChangeRate && aMaxChangeRate <= MAX_CHANGE_PER_SEC, "RP: INVALID_CHANGE_PER_SECOND");
-        require(0 < aMaxChangePerTrade && aMaxChangePerTrade <= MAX_CHANGE_PER_TRADE, "RP: INVALID_CHANGE_PER_TRADE");
+        require(0 < aMaxChangeRate && aMaxChangeRate <= MAX_CHANGE_PER_SEC, InvalidChangePerSecond());
+        require(0 < aMaxChangePerTrade && aMaxChangePerTrade <= MAX_CHANGE_PER_TRADE, InvalidChangePerTrade());
 
         emit ClampParamsUpdated(aMaxChangeRate, aMaxChangePerTrade);
         maxChangeRate = aMaxChangeRate;

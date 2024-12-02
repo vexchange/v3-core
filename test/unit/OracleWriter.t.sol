@@ -119,7 +119,7 @@ contract OracleWriterTest is BaseTest {
     function testSetClampParams_TooLow() external allPairs {
         // act & assert
         vm.prank(address(_factory));
-        vm.expectRevert("RP: INVALID_CHANGE_PER_SECOND");
+        vm.expectRevert(ReservoirPair.InvalidChangePerSecond.selector);
         _pair.setClampParams(0, 0);
     }
 
@@ -129,7 +129,7 @@ contract OracleWriterTest is BaseTest {
 
         // act & assert
         vm.prank(address(_factory));
-        vm.expectRevert("RP: INVALID_CHANGE_PER_SECOND");
+        vm.expectRevert(ReservoirPair.InvalidChangePerSecond.selector);
         _pair.setClampParams(lMaxChangeRate, 1);
     }
 
@@ -248,7 +248,7 @@ contract OracleWriterTest is BaseTest {
         uint256 lJumpAhead = bound(aJumpAhead, 10, type(uint16).max);
 
         // arrange
-        uint256 lStartingTimestamp = block.timestamp;
+        uint256 lStartingTimestamp = (block.timestamp << 1) >> 1;
         _stepTime(lJumpAhead);
 
         // act
