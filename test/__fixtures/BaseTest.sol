@@ -114,8 +114,8 @@ abstract contract BaseTest is Test {
     }
 
     function _stepTime(uint256 aTime) internal {
-        vm.roll(block.number + 1);
-        skip(aTime);
+        vm.roll( vm.getBlockNumber() + 1);
+        vm.warp(vm.getBlockTimestamp() + aTime);
     }
 
     function _writeObservation(
