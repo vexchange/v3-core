@@ -18,9 +18,6 @@ contract StablePair is ReservoirPair {
     using Bytes32Lib for bytes32;
     using FixedPointMathLib for uint256;
 
-    // solhint-disable-next-line var-name-mixedcase
-//    address private immutable MINT_BURN_LOGIC;
-
     string private constant PAIR_SWAP_FEE_NAME = "SP::swapFee";
     string private constant AMPLIFICATION_COEFFICIENT_NAME = "SP::amplificationCoefficient";
 
@@ -31,13 +28,8 @@ contract StablePair is ReservoirPair {
     error InvalidDuration();
     error AmpRateTooHigh();
 
-    error InsufficientLiqMinted();
     error NotSelf();
-    error InvalidAmounts();
-
-    error AmountZero();
-    error InsufficientLiq();
-    error InsufficientAmtIn();
+    error InvalidMintAmounts();
 
     error NonOptimalFeeTooLarge();
 
@@ -48,29 +40,18 @@ contract StablePair is ReservoirPair {
     uint192 public lastInvariant;
     uint64 public lastInvariantAmp;
 
-    constructor(IERC20 aToken0, IERC20 aToken1)
-        ReservoirPair(aToken0, aToken1, PAIR_SWAP_FEE_NAME)
-    {
-//        MINT_BURN_LOGIC = lIsStableMintBurn ? address(0) : address(factory.stableMintBurn());
+    constructor(IERC20 aToken0, IERC20 aToken1) ReservoirPair(aToken0, aToken1, PAIR_SWAP_FEE_NAME) {
+        ampData.initialA = factory.read(AMPLIFICATION_COEFFICIENT_NAME).toUint64() * uint64(StableMath.A_PRECISION);
+        ampData.futureA = ampData.initialA;
+        ampData.initialATime = uint64(block.timestamp);
+        ampData.futureATime = uint64(block.timestamp);
 
-//        if (!lIsStableMintBurn) {
-//            require(MINT_BURN_LOGIC.code.length > 0, "SP: MINT_BURN_NOT_DEPLOYED");
-            ampData.initialA = factory.read(AMPLIFICATION_COEFFICIENT_NAME).toUint64() * uint64(StableMath.A_PRECISION);
-            ampData.futureA = ampData.initialA;
-            ampData.initialATime = uint64(block.timestamp);
-            ampData.futureATime = uint64(block.timestamp);
-
-            require(
-                ampData.initialA >= StableMath.MIN_A * uint64(StableMath.A_PRECISION)
-                    && ampData.initialA <= StableMath.MAX_A * uint64(StableMath.A_PRECISION),
-                InvalidA()
-            );
-//        }
+        require(
+            ampData.initialA >= StableMath.MIN_A * uint64(StableMath.A_PRECISION)
+                && ampData.initialA <= StableMath.MAX_A * uint64(StableMath.A_PRECISION),
+            InvalidA()
+        );
     }
-//
-//    function _isStableMintBurn(IERC20 aToken0, IERC20 aToken1) private pure returns (bool) {
-//        return address(aToken0) == address(0) && address(aToken1) == address(0);
-//    }
 
     function rampA(uint64 aFutureARaw, uint64 aFutureATime) external onlyFactory {
         require(aFutureARaw >= StableMath.MIN_A && aFutureARaw <= StableMath.MAX_A, InvalidA());
@@ -109,23 +90,6 @@ contract StablePair is ReservoirPair {
 
         emit StopRampA(lCurrentAPrecise, lTimestamp);
     }
-//
-//    function _delegateToMintBurn() internal {
-//        address lTarget = MINT_BURN_LOGIC;
-//
-//        // SAFETY:
-//        // The delegated call has the same signature as the calling function and both the calldata
-//        // and returndata do not exceed 64 bytes. This is only valid when lTarget == MINT_BURN_LOGIC.
-//        assembly ("memory-safe") {
-//            calldatacopy(0, 0, calldatasize())
-//            let success := delegatecall(gas(), lTarget, 0, calldatasize(), 0, 0)
-//
-//            returndatacopy(0, 0, returndatasize())
-//
-//            if success { return(0, returndatasize()) }
-//            revert(0, returndatasize())
-//        }
-//    }
 
     function mint(address aTo) external virtual override nonReentrant returns (uint256 rLiquidity) {
         // NB: Must sync management PNL before we load reserves.
@@ -146,11 +110,12 @@ contract StablePair is ReservoirPair {
         (uint256 lTotalSupply, uint256 lOldLiq) = _mintFee(lReserve0, lReserve1);
 
         if (lTotalSupply == 0) {
-            require(lAmount0 > 0 && lAmount1 > 0, InvalidAmounts());
+            require(lAmount0 > 0 && lAmount1 > 0, InvalidMintAmounts());
             rLiquidity = lNewLiq - MINIMUM_LIQUIDITY;
             _mint(address(0), MINIMUM_LIQUIDITY);
         } else {
-            // will only phantom overflow and revert when lTotalSupply and lNewLiq is in the range of uint128 which will only happen if:
+            // will only phantom overflow and revert when lTotalSupply and lNewLiq is in the range of uint128 which will
+            // only happen if:
             // 1. both tokens have 0 decimals (1e18 is 60 bits) and the amounts are each around 68 bits
             // 2. both tokens have 6 decimals (1e12 is 40 bits) and the amounts are each around 88 bits
             // in which case the mint will fail anyway because it would have reverted at _computeLiquidity
@@ -196,8 +161,8 @@ contract StablePair is ReservoirPair {
 
         _burn(address(this), liquidity);
 
-        _checkedTransfer(this.token0(), aTo, rAmount0, lReserve0, lReserve1);
-        _checkedTransfer(this.token1(), aTo, rAmount1, lReserve0, lReserve1);
+        _checkedTransfer(token0, aTo, rAmount0, lReserve0, lReserve1);
+        _checkedTransfer(token1, aTo, rAmount1, lReserve0, lReserve1);
 
         uint256 lBalance0 = _totalToken0();
         uint256 lBalance1 = _totalToken1();
@@ -210,10 +175,9 @@ contract StablePair is ReservoirPair {
     }
 
     function mintFee(uint256 aReserve0, uint256 aReserve1)
-    external
-    virtual
-//    override
-    returns (uint256 rTotalSupply, uint256 rD)
+        external
+        virtual
+        returns (uint256 rTotalSupply, uint256 rD)
     {
         require(msg.sender == address(this), NotSelf());
         return _mintFee(aReserve0, aReserve1);
@@ -226,12 +190,11 @@ contract StablePair is ReservoirPair {
     /// @return rLiquidity The invariant, at the precision of the pool.
     function _computeLiquidity(uint256 aReserve0, uint256 aReserve1) internal view returns (uint256 rLiquidity) {
         unchecked {
-            uint256 adjustedReserve0 = aReserve0 * token0PrecisionMultiplier();
-            uint256 adjustedReserve1 = aReserve1 * token1PrecisionMultiplier();
+            uint256 adjustedReserve0 = aReserve0 * token0PrecisionMultiplier;
+            uint256 adjustedReserve1 = aReserve1 * token1PrecisionMultiplier;
             rLiquidity = StableMath._computeLiquidityFromAdjustedBalances(adjustedReserve0, adjustedReserve1, _getNA());
         }
     }
-
 
     /// @dev This fee is charged to cover for `swapFee` when users add unbalanced liquidity.
     /// multiplications will not phantom overflow given the following conditions:
@@ -239,9 +202,9 @@ contract StablePair is ReservoirPair {
     /// 2. aAmount0 and aAmount1 <= uint104 as it would revert anyway at _update if above uint104
     /// 3. swapFee <= 0.02e6
     function _nonOptimalMintFee(uint256 aAmount0, uint256 aAmount1, uint256 aReserve0, uint256 aReserve1)
-    internal
-    view
-    returns (uint256 rToken0Fee, uint256 rToken1Fee)
+        internal
+        view
+        returns (uint256 rToken0Fee, uint256 rToken1Fee)
     {
         if (aReserve0 == 0 || aReserve1 == 0) return (0, 0);
         uint256 amount1Optimal = aAmount0 * aReserve1 / aReserve0;
@@ -259,16 +222,18 @@ contract StablePair is ReservoirPair {
         bool lFeeOn = platformFee > 0;
         rTotalSupply = totalSupply();
         rD = StableMath._computeLiquidityFromAdjustedBalances(
-            aReserve0 * token0PrecisionMultiplier(), aReserve1 * token1PrecisionMultiplier(), 2 * lastInvariantAmp
+            aReserve0 * token0PrecisionMultiplier, aReserve1 * token1PrecisionMultiplier, 2 * lastInvariantAmp
         );
         if (lFeeOn) {
             uint256 lDLast = lastInvariant;
             if (rD > lDLast) {
                 // @dev `platformFee` % of increase in liquidity.
                 uint256 lPlatformFee = platformFee;
-                // will not phantom overflow as rTotalSupply is max 128 bits. and (rD - lDLast) is usually within 70 bits and lPlatformFee is max 1e6 (20 bits)
+                // will not phantom overflow as rTotalSupply is max 128 bits. and (rD - lDLast) is usually within 70
+                // bits and lPlatformFee is max 1e6 (20 bits)
                 uint256 lNumerator = rTotalSupply * (rD - lDLast) * lPlatformFee;
-                // will not phantom overflow as FEE_ACCURACY and lPlatformFee are max 1e6 (20 bits), and rD and lDLast are max 128 bits
+                // will not phantom overflow as FEE_ACCURACY and lPlatformFee are max 1e6 (20 bits), and rD and lDLast
+                // are max 128 bits
                 uint256 lDenominator = (FEE_ACCURACY - lPlatformFee) * rD + lPlatformFee * lDLast;
                 uint256 lPlatformShares = lNumerator / lDenominator;
 
@@ -297,13 +262,13 @@ contract StablePair is ReservoirPair {
         if (aExactIn) {
             // swap token0 exact in for token1 variable out
             if (aAmount > 0) {
-                lTokenOut = token1();
+                lTokenOut = token1;
                 lAmountIn = uint256(aAmount);
                 rAmountOut = _getAmountOut(lAmountIn, lReserve0, lReserve1, true);
             }
             // swap token1 exact in for token0 variable out
             else {
-                lTokenOut = token0();
+                lTokenOut = token0;
                 unchecked {
                     lAmountIn = uint256(-aAmount);
                 }
@@ -314,7 +279,7 @@ contract StablePair is ReservoirPair {
             if (aAmount > 0) {
                 rAmountOut = uint256(aAmount);
                 require(rAmountOut < lReserve0, InsufficientLiq());
-                lTokenOut = token0();
+                lTokenOut = token0;
                 lAmountIn = _getAmountIn(rAmountOut, lReserve0, lReserve1, true);
             }
             // swap token0 variable in for token1 exact out
@@ -323,7 +288,7 @@ contract StablePair is ReservoirPair {
                     rAmountOut = uint256(-aAmount);
                 }
                 require(rAmountOut < lReserve1, InsufficientLiq());
-                lTokenOut = token1();
+                lTokenOut = token1;
                 lAmountIn = _getAmountIn(rAmountOut, lReserve0, lReserve1, false);
             }
         }
@@ -333,8 +298,8 @@ contract StablePair is ReservoirPair {
         if (aData.length > 0) {
             IReservoirCallee(aTo).reservoirCall(
                 msg.sender,
-                lTokenOut == token0() ? int256(rAmountOut) : -int256(lAmountIn),
-                lTokenOut == token1() ? int256(rAmountOut) : -int256(lAmountIn),
+                lTokenOut == token0 ? int256(rAmountOut) : -int256(lAmountIn),
+                lTokenOut == token1 ? int256(rAmountOut) : -int256(lAmountIn),
                 aData
             );
         }
@@ -342,11 +307,11 @@ contract StablePair is ReservoirPair {
         uint256 lBalance0 = _totalToken0();
         uint256 lBalance1 = _totalToken1();
 
-        uint256 lReceived = lTokenOut == token0() ? lBalance1 - lReserve1 : lBalance0 - lReserve0;
+        uint256 lReceived = lTokenOut == token0 ? lBalance1 - lReserve1 : lBalance0 - lReserve0;
         require(lReceived >= lAmountIn, InsufficientAmtIn());
 
         _update(lBalance0, lBalance1, uint104(lReserve0), uint104(lReserve1), lBlockTimestampLast, lIndex);
-        emit Swap(msg.sender, lTokenOut == token1(), lReceived, rAmountOut, aTo);
+        emit Swap(msg.sender, lTokenOut == token1, lReceived, rAmountOut, aTo);
     }
 
     function _getAmountOut(uint256 aAmountIn, uint256 aReserve0, uint256 aReserve1, bool aToken0In)
@@ -358,8 +323,8 @@ contract StablePair is ReservoirPair {
             aAmountIn,
             aReserve0,
             aReserve1,
-            token0PrecisionMultiplier(),
-            token1PrecisionMultiplier(),
+            token0PrecisionMultiplier,
+            token1PrecisionMultiplier,
             aToken0In,
             swapFee,
             _getNA()
@@ -375,8 +340,8 @@ contract StablePair is ReservoirPair {
             aAmountOut,
             aReserve0,
             aReserve1,
-            token0PrecisionMultiplier(),
-            token1PrecisionMultiplier(),
+            token0PrecisionMultiplier,
+            token1PrecisionMultiplier,
             aToken0Out,
             swapFee,
             _getNA()
@@ -430,7 +395,7 @@ contract StablePair is ReservoirPair {
         returns (uint256, int256)
     {
         return StableOracleMath.calcLogPrice(
-            _getCurrentAPrecise(), aBalance0 * token0PrecisionMultiplier(), aBalance1 * token1PrecisionMultiplier()
+            _getCurrentAPrecise(), aBalance0 * token0PrecisionMultiplier, aBalance1 * token1PrecisionMultiplier
         );
     }
 }

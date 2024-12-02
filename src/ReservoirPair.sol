@@ -32,21 +32,33 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     uint256 public constant MINIMUM_LIQUIDITY = 1e3;
     uint256 public constant FEE_ACCURACY = 1_000_000; // 100%
 
+    IERC20 public immutable token0;
+    IERC20 public immutable token1;
+
+    // Multipliers for each pooled token's precision to get to POOL_PRECISION_DECIMALS. For example,
+    // TBTC has 18 decimals, so the multiplier should be 1. WBTC has 8, so the multiplier should be
+    // 10 ** 18 / 10 ** 8 => 10 ** 10.
+    uint128 public immutable token0PrecisionMultiplier;
+    uint128 public immutable token1PrecisionMultiplier;
+
     IGenericFactory public immutable factory;
 
     error Forbidden();
+    error Overflow();
+    error InvalidSwapFee();
+    error InvalidPlatformFee();
+    error InvalidTokenToRecover();
+    error TransferFailed();
+    error AssetManagerStillActive();
+    error NotManager();
+    error InvalidSkimToken();
+    error InvalidChangePerSecond();
+    error InvalidChangePerTrade();
+    error AmountZero();
 
-
-error Overflow();
-error InvalidSwapFee();
-error InvalidPlatformFee();
-error InvalidTokenToRecover();
-error TransferFailed();
-error AssetManagerStillActive();
-error NotManager();
-error InvalidSkimToken();
-error InvalidChangePerSecond();
-error InvalidChangePerTrade();
+    error InsufficientLiqMinted();
+    error InsufficientLiq();
+    error InsufficientAmtIn();
 
 
     modifier onlyFactory() {
@@ -54,58 +66,20 @@ error InvalidChangePerTrade();
         _;
     }
 
-    constructor(IERC20 aToken0, IERC20 aToken1, string memory aSwapFeeName
-//        bool aNotStableMintBurn
-    ) {
+    constructor(IERC20 aToken0, IERC20 aToken1, string memory aSwapFeeName) {
         factory = IGenericFactory(msg.sender);
-        _token0 = aToken0;
-        _token1 = aToken1;
+        token0 = aToken0;
+        token1 = aToken1;
 
-        _token0PrecisionMultiplier = uint128(10) ** (18 - aToken0.decimals()) ;
-        _token1PrecisionMultiplier = uint128(10) ** (18 - aToken1.decimals()) ;
+        token0PrecisionMultiplier = uint128(10) ** (18 - aToken0.decimals()) ;
+        token1PrecisionMultiplier = uint128(10) ** (18 - aToken1.decimals()) ;
         swapFeeName = keccak256(bytes(aSwapFeeName));
 
-//        if (aNotStableMintBurn) {
-//            updateSwapFee();
-//            updatePlatformFee();
-//            setClampParams(
-//                factory.read(MAX_CHANGE_RATE_NAME).toUint128(), factory.read(MAX_CHANGE_PER_TRADE_NAME).toUint128()
-//            );
-//        }
-    }
-
-    /*//////////////////////////////////////////////////////////////////////////
-
-                                IMMUTABLE GETTERS
-
-    Allows StableMintBurn to override the immutables to instead make a call to
-    address(this) so the action is delegatecall safe.
-
-    //////////////////////////////////////////////////////////////////////////*/
-
-    IERC20 internal immutable _token0;
-    IERC20 internal immutable _token1;
-
-    // Multipliers for each pooled token's precision to get to POOL_PRECISION_DECIMALS. For example,
-    // TBTC has 18 decimals, so the multiplier should be 1. WBTC has 8, so the multiplier should be
-    // 10 ** 18 / 10 ** 8 => 10 ** 10.
-    uint128 internal immutable _token0PrecisionMultiplier;
-    uint128 internal immutable _token1PrecisionMultiplier;
-
-    function token0() public view virtual returns (IERC20) {
-        return _token0;
-    }
-
-    function token1() public view virtual returns (IERC20) {
-        return _token1;
-    }
-
-    function token0PrecisionMultiplier() public view virtual returns (uint128) {
-        return _token0PrecisionMultiplier;
-    }
-
-    function token1PrecisionMultiplier() public view virtual returns (uint128) {
-        return _token1PrecisionMultiplier;
+        updateSwapFee();
+        updatePlatformFee();
+        setClampParams(
+            factory.read(MAX_CHANGE_RATE_NAME).toUint128(), factory.read(MAX_CHANGE_PER_TRADE_NAME).toUint128()
+        );
     }
 
     function _useTransientReentrancyGuardOnlyOnMainnet() internal pure override returns (bool) {
@@ -215,8 +189,8 @@ error InvalidChangePerTrade();
     function skim(address aTo) external nonReentrant {
         (uint256 lReserve0, uint256 lReserve1,,) = getReserves();
 
-        _checkedTransfer(token0(), aTo, _totalToken0() - lReserve0, lReserve0, lReserve1);
-        _checkedTransfer(token1(), aTo, _totalToken1() - lReserve1, lReserve0, lReserve1);
+        _checkedTransfer(token0, aTo, _totalToken0() - lReserve0, lReserve0, lReserve1);
+        _checkedTransfer(token1, aTo, _totalToken1() - lReserve1, lReserve0, lReserve1);
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -286,7 +260,7 @@ error InvalidChangePerTrade();
     }
 
     function recoverToken(IERC20 aToken) external {
-        require(aToken != token0() && aToken != token1(), InvalidTokenToRecover());
+        require(aToken != token0 && aToken != token1, InvalidTokenToRecover());
         address _recoverer = factory.read(RECOVERER_NAME).toAddress();
         uint256 _amountToRecover = aToken.balanceOf(address(this));
 
@@ -315,7 +289,7 @@ error InvalidChangePerTrade();
         uint256 aReserve1
     ) internal {
         if (!_safeTransfer(aToken, aDestination, aAmount)) {
-            bool lIsToken0 = aToken == token0();
+            bool lIsToken0 = aToken == token0;
             uint256 lTokenOutManaged = lIsToken0 ? token0Managed : token1Managed;
             uint256 lReserveOut = lIsToken0 ? aReserve0 : aReserve1;
 
@@ -382,11 +356,11 @@ error InvalidChangePerTrade();
     uint104 public token1Managed;
 
     function _totalToken0() internal view returns (uint256) {
-        return token0().balanceOf(address(this)) + uint256(token0Managed);
+        return token0.balanceOf(address(this)) + uint256(token0Managed);
     }
 
     function _totalToken1() internal view returns (uint256) {
-        return token1().balanceOf(address(this)) + uint256(token1Managed);
+        return token1.balanceOf(address(this)) + uint256(token1Managed);
     }
 
     function _handleReport(IERC20 aToken, uint256 aReserve, uint256 aPrevBalance, uint256 aNewBalance)
@@ -421,8 +395,8 @@ error InvalidChangePerTrade();
             return (aReserve0, aReserve1);
         }
 
-        IERC20 lToken0 = token0();
-        IERC20 lToken1 = token1();
+        IERC20 lToken0 = token0;
+        IERC20 lToken1 = token1;
 
         uint256 lToken0Managed = assetManager.getBalance(this, lToken0);
         uint256 lToken1Managed = assetManager.getBalance(this, lToken1);
@@ -450,14 +424,14 @@ error InvalidChangePerTrade();
 
             token0Managed += lDelta;
 
-            address(token0()).safeTransfer(msg.sender, lDelta);
+            address(token0).safeTransfer(msg.sender, lDelta);
         } else if (aToken0Change < 0) {
             uint104 lDelta = uint256(-aToken0Change).toUint104();
 
             // solhint-disable-next-line reentrancy
             token0Managed -= lDelta;
 
-            address(token0()).safeTransferFrom(msg.sender, address(this), lDelta);
+            address(token0).safeTransferFrom(msg.sender, address(this), lDelta);
         }
 
         if (aToken1Change > 0) {
@@ -466,19 +440,19 @@ error InvalidChangePerTrade();
             // solhint-disable-next-line reentrancy
             token1Managed += lDelta;
 
-            address(token1()).safeTransfer(msg.sender, lDelta);
+            address(token1).safeTransfer(msg.sender, lDelta);
         } else if (aToken1Change < 0) {
             uint104 lDelta = uint256(-aToken1Change).toUint104();
 
             // solhint-disable-next-line reentrancy
             token1Managed -= lDelta;
 
-            address(token1()).safeTransferFrom(msg.sender, address(this), lDelta);
+            address(token1).safeTransferFrom(msg.sender, address(this), lDelta);
         }
     }
 
     function skimExcessManaged(IERC20 aToken) external returns (uint256 rAmtSkimmed) {
-        require(aToken == token0() || aToken == token1(), InvalidSkimToken());
+        require(aToken == token0 || aToken == token1, InvalidSkimToken());
         uint256 lTokenAmtManaged = assetManager.getBalance(this, aToken);
 
         if (lTokenAmtManaged > type(uint104).max) {
@@ -486,7 +460,7 @@ error InvalidChangePerTrade();
 
             rAmtSkimmed = lTokenAmtManaged - type(uint104).max;
 
-            assetManager.returnAsset(aToken == token0(), rAmtSkimmed);
+            assetManager.returnAsset(aToken == token0, rAmtSkimmed);
             address(aToken).safeTransfer(lRecoverer, rAmtSkimmed);
         }
     }

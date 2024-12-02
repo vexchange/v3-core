@@ -913,35 +913,35 @@ contract StablePairTest is BaseTest {
         assertGt(lAmtC, 0);
     }
 
-//    function testBurn_SucceedEvenIfMintFeeReverts() public {
-//        // arrange - change some values to make iterative function algorithm not converge
-//        // I have tried changing the reserves, but no matter how extreme the values are,
-//        // StableMath._computeLiquidityFromAdjustedBalances would still converge
-//        // which is good for our contracts but not good for my attempt to break it
-//        uint192 lLastInvariant = 200e18;
-//        uint64 lLastInvariantAmp = 0;
-//        bytes32 lEncoded = bytes32(abi.encodePacked(lLastInvariantAmp, lLastInvariant));
-//        // hardcoding the slot for now as there is no way to access it publicly
-//        // this will break when we change the storage layout
-//        vm.store(address(_stablePair), bytes32(uint256(16)), lEncoded);
-//
-//        // ensure that the iterative function that _mintFee calls reverts with the adulterated values
-//        vm.prank(address(_stablePair));
-//        vm.expectRevert(stdError.arithmeticError);
-//        _stablePair.mintFee(100e18, 100e18);
-//
-//        // act
-//        vm.prank(_alice);
-//        _stablePair.transfer(address(_stablePair), 1e18);
-//        // mintFee indeed reverted but burn still succeeded - this can be seen by examining the callstack
-//        (uint256 lAmount0, uint256 lAmount1) = _stablePair.burn(address(this)); // mintFee would fail in this call
-//
-//        // assert
-//        assertEq(lAmount0, 0.5e18);
-//        assertEq(lAmount0, lAmount1);
-//        assertEq(_tokenA.balanceOf(address(this)), lAmount0);
-//        assertEq(_tokenB.balanceOf(address(this)), lAmount1);
-//    }
+    function testBurn_SucceedEvenIfMintFeeReverts() public {
+        // arrange - change some values to make iterative function algorithm not converge
+        // I have tried changing the reserves, but no matter how extreme the values are,
+        // StableMath._computeLiquidityFromAdjustedBalances would still converge
+        // which is good for our contracts but not good for my attempt to break it
+        uint192 lLastInvariant = 200e18;
+        uint64 lLastInvariantAmp = 0;
+        bytes32 lEncoded = bytes32(abi.encodePacked(lLastInvariantAmp, lLastInvariant));
+        // hardcoding the slot for now as there is no way to access it publicly
+        // this will break when we change the storage layout
+        vm.store(address(_stablePair), bytes32(uint256(15)), lEncoded);
+
+        // ensure that the iterative function that _mintFee calls reverts with the adulterated values
+        vm.prank(address(_stablePair));
+        vm.expectRevert(stdError.arithmeticError);
+        _stablePair.mintFee(100e18, 100e18);
+
+        // act
+        vm.prank(_alice);
+        _stablePair.transfer(address(_stablePair), 1e18);
+        // mintFee indeed reverted but burn still succeeded - this can be seen by examining the callstack
+        (uint256 lAmount0, uint256 lAmount1) = _stablePair.burn(address(this)); // mintFee would fail in this call
+
+        // assert
+        assertEq(lAmount0, 0.5e18);
+        assertEq(lAmount0, lAmount1);
+        assertEq(_tokenA.balanceOf(address(this)), lAmount0);
+        assertEq(_tokenB.balanceOf(address(this)), lAmount1);
+    }
 
     function testBurn_LastInvariantUseReserveInsteadOfBalance() external {
         // arrange - trigger a write to the lastInvariant via burn

@@ -248,7 +248,7 @@ contract OracleWriterTest is BaseTest {
         uint256 lJumpAhead = bound(aJumpAhead, 10, type(uint16).max);
 
         // arrange
-        uint256 lStartingTimestamp = block.timestamp;
+        uint256 lStartingTimestamp = (block.timestamp << 1) >> 1;
         _stepTime(lJumpAhead);
 
         // act
