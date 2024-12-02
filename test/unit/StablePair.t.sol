@@ -990,7 +990,7 @@ contract StablePairTest is BaseTest {
     }
 
     function testRampA_OnlyFactory() public {
-        // act && assert
+        // act & assert
         vm.expectRevert(ReservoirPair.Forbidden.selector);
         _stablePair.rampA(100, uint64(block.timestamp + 10 days));
     }

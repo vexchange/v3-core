@@ -105,8 +105,7 @@ contract ConstantProductPair is ReservoirPair {
         uint256 lAmount1 = lBalance1 - lReserve1;
 
         _mintFee(lReserve0, lReserve1);
-        uint256 lTotalSupply = totalSupply(); // gas savings, must be defined here since totalSupply can update in
-            // _mintFee
+        uint256 lTotalSupply = totalSupply(); // gas savings, must be defined here since totalSupply can update in // _mintFee
         if (lTotalSupply == 0) {
             rLiquidity = FixedPointMathLib.sqrt(lAmount0 * lAmount1) - MINIMUM_LIQUIDITY;
             _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
@@ -135,8 +134,8 @@ contract ConstantProductPair is ReservoirPair {
         uint256 liquidity = balanceOf(address(this));
 
         _mintFee(lReserve0, lReserve1);
-        uint256 lTotalSupply = totalSupply(); // gas savings, must be defined here since totalSupply can update in
-            // _mintFee
+        uint256 lTotalSupply = totalSupply(); // gas savings, must be defined here since totalSupply can update in _mintFee
+
         rAmount0 = liquidity * _totalToken0() / lTotalSupply; // using balances ensures pro-rata distribution
         rAmount1 = liquidity * _totalToken1() / lTotalSupply; // using balances ensures pro-rata distribution
         _burn(address(this), liquidity);
