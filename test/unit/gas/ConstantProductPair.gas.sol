@@ -24,16 +24,13 @@ contract ConstantProductPairGas is BaseTest {
         _oraclePair.mint(_bob);
 
         // Take some oracle recordings and make storage slots non-zero.
-        vm.roll(10);
-        skip(100);
+        _skip(100);
         _tokenB.transfer(address(_oraclePair), 50e18);
         uint256 lOut = _oraclePair.swap(int256(-50e18), true, address(_bob), bytes(""));
-        vm.roll(10);
-        skip(100);
+        _skip(100);
         _tokenC.transfer(address(_oraclePair), lOut);
         _oraclePair.swap(int256(lOut), true, address(_bob), bytes(""));
-        vm.roll(10);
-        skip(100);
+        _skip(100);
         _oraclePair.burn(address(this));
 
         // This pair will let a user swap without writing the oracle.
@@ -62,15 +59,13 @@ contract ConstantProductPairGas is BaseTest {
     }
 
     function testGasSwap_UpdateOracle() external {
-        vm.roll(100);
-        skip(10_000);
+        _skip(10_000);
         _tokenB.transfer(address(_oraclePair), 0.1e18);
         _oraclePair.swap(int256(-0.1e18), true, address(_bob), bytes(""));
     }
 
     function testGasSwap_UpdateOracleClamped() external {
-        vm.roll(100);
-        skip(10_000);
+        _skip(10_000);
         _tokenB.transfer(address(_oraclePair), 50e18);
         _oraclePair.swap(int256(-50e18), true, address(_bob), bytes(""));
     }
