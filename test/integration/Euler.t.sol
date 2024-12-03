@@ -423,7 +423,7 @@ contract EulerIntegrationTest is BaseTest {
         uint256 lPairShares = _manager.shares(_pair, USDC);
 
         // act
-        skip(lTime);
+        _skip(lTime);
         uint256 lBalanceAfterInterest = _manager.getBalance(_pair, USDC);
         uint256 lExpectedShares = USDCVault.previewDeposit(uint256(lAmountToManageOther));
         _manager.adjustManagement(
@@ -478,7 +478,7 @@ contract EulerIntegrationTest is BaseTest {
         );
 
         // act - go forward in time to simulate accrual of profits
-        skip(30 days);
+        _skip(30 days);
         uint256 lNewManaged = _manager.getBalance(_pair, USDC);
         assertGt(lNewManaged, uint256(lAmountToManage1));
         _manager.adjustManagement(

@@ -150,4 +150,9 @@ abstract contract BaseTest is Test {
 
         vm.store(address(aPair), lAccesses[0], lEncoded);
     }
+
+    function _skip(uint256 aTime) internal {
+        vm.roll(vm.getBlockNumber() + 1);
+        vm.warp(vm.getBlockTimestamp() + aTime);
+    }
 }
