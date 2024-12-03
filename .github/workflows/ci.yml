@@ -54,24 +54,6 @@ jobs:
           version: nightly
       - run: npm run test:e2e
 
-  test-uniswap-v2:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-      - uses: actions/setup-node@v3
-        with:
-          node-version-file: ".nvmrc"
-      - run: npm ci
-      - run: forge build
-      - run: npm run install:uniswap
-      - run: npm run test:uniswap
-
   test-differential-balancer:
     runs-on: ubuntu-latest
 

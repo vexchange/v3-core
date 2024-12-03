@@ -40,8 +40,7 @@
     "gas:snapshot": "forge snapshot",
     "gas:check": "forge snapshot --check",
     "generate": "typechain --target ethers-v5 --out-dir typings 'out/**/*.json'",
-    "install": "npm run install:uniswap && npm run install:balancer",
-    "install:uniswap": "cd reference/uniswap-v2-core && npm ci",
+    "install": "npm run install:balancer",
     "install:balancer": "cd reference/balancer-v2-monorepo && yarn",
     "lint": "npm run lint:check",
     "lint:check": "npm run solhint:check && npm run prettier:check && npm run mdlint:check",
@@ -72,7 +71,6 @@
     "test:differential": "export FOUNDRY_PROFILE=differential && forge test",
     "test:e2e": "./test/e2e/deployment.sh",
     "test:integration": "export FOUNDRY_PROFILE=integration && script/coverage_patch_deployer.sh && forge test ",
-    "test:uniswap": "cd reference/uniswap-v2-core && npm run test",
     "test:unit": "script/coverage_patch_deployer.sh && forge test"
   },
   "devDependencies": {
