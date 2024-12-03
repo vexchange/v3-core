@@ -2,7 +2,7 @@
 solc = "0.8.28"
 evm_version = "cancun"
 via_ir = true
-bytecode_hash = "ipfs"
+bytecode_hash = "none"
 optimizer_runs = 1_000_000
 gas_limit = "18446744073709551615"
 libs = ['lib']
