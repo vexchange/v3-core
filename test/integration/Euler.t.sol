@@ -973,6 +973,38 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(_manager.shares(lPair3, USDC), 0, "pair3 shares");
     }
 
+    // The following two test cases show that even with a third party intentionally / accidentally
+    // transfers the underlying tokens to the asset manager, it would still function (deposit/withdraw) as normal
+    function testResilientEvenWithUnexpectedTokens_Deposit() external allNetworks allPairs {
+        // arrange
+        _deal(address(USDC), address(_manager), 1_000_000e6);
+
+        // act - adjustManagement should still succeed despite extra tokens
+        int256 lAmtToManage = 2e6;
+        _manager.adjustManagement(_pair, USDC == _pair.token0() ? lAmtToManage : int256(0), USDC == _pair.token1() ? lAmtToManage : int256(0));
+
+        // assert
+        assertGt(USDC.balanceOf(address(_manager)), 0);
+        assertApproxEqAbs(_manager.getBalance(_pair, USDC), uint256(lAmtToManage), 1);
+    }
+
+    function testResilientEvenWithUnexpectedTokens_Withdraw() external allNetworks allPairs {
+        // arrange
+        int256 lAmtToManage = 2e6;
+        _increaseManagementOneToken(lAmtToManage);
+        uint256 lUnexpectedTokens = 33222;
+        _deal(address(USDC), address(_manager), lUnexpectedTokens);
+
+        // act
+        uint256 lBalance = _manager.getBalance(_pair, USDC);
+        _manager.adjustManagement(_pair, _pair.token0() == USDC ? -int256(lBalance) : int256(0), _pair.token1() == USDC ? -int256(lBalance) : int256(0));
+
+        // assert
+        assertEq(_manager.getBalance(_pair, USDC), 0);
+        assertEq(USDCVault.balanceOf(address(_manager)), 0);
+        assertEq(USDC.balanceOf(address(_manager)), lUnexpectedTokens);
+    }
+
     // this test shows that the asset manager should still function properly with investing, divesting, showing balance
     // even if an external party transfers unsolicited shares into it
     function testResilientEvenInExternalShareTransfer() external allNetworks allPairs {
