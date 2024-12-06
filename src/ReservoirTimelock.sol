@@ -8,8 +8,10 @@ import { ReservoirPair } from "src/ReservoirPair.sol";
 import { StablePair } from "src/curve/stable/StablePair.sol";
 
 contract ReservoirTimelock is CompTimelock(msg.sender, 7 days) {
+    error Unauthorized();
+
     modifier onlyAdmin() {
-        require(msg.sender == admin, "RT: ADMIN");
+        require(msg.sender == admin, Unauthorized());
         _;
     }
 

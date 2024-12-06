@@ -15,6 +15,11 @@ uint256 constant MAX_SSTORE_SIZE = 0x6000 - 1;
 contract GenericFactory is IGenericFactory, Owned(msg.sender) {
     using Bytes32Lib for address;
 
+    error IdenticalAddresses();
+    error ZeroAddress();
+    error PairExists();
+    error DeployFailed();
+
     /*//////////////////////////////////////////////////////////////////////////
                                     CONFIG
     //////////////////////////////////////////////////////////////////////////*/
@@ -139,9 +144,9 @@ contract GenericFactory is IGenericFactory, Owned(msg.sender) {
     }
 
     function createPair(IERC20 aTokenA, IERC20 aTokenB, uint256 aCurveId) external returns (address rPair) {
-        require(aTokenA != aTokenB, "FACTORY: IDENTICAL_ADDRESSES");
-        require(address(aTokenA) != address(0), "FACTORY: ZERO_ADDRESS");
-        require(getPair[aTokenA][aTokenB][aCurveId] == address(0), "FACTORY: PAIR_EXISTS");
+        require(aTokenA != aTokenB, IdenticalAddresses());
+        require(address(aTokenA) != address(0), ZeroAddress());
+        require(getPair[aTokenA][aTokenB][aCurveId] == address(0), PairExists());
 
         (IERC20 lToken0, IERC20 lToken1) = _sortAddresses(aTokenA, aTokenB);
 
@@ -159,7 +164,7 @@ contract GenericFactory is IGenericFactory, Owned(msg.sender) {
                     0 // salt
                 )
         }
-        require(rPair != address(0), "FACTORY: DEPLOY_FAILED");
+        require(rPair != address(0), DeployFailed());
 
         // Double-map the newly created pair for reverse lookup.
         getPair[lToken0][lToken1][aCurveId] = rPair;
