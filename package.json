@@ -41,7 +41,7 @@
     "gas:check": "forge snapshot --check",
     "generate": "typechain --target ethers-v5 --out-dir typings 'out/**/*.json'",
     "install": "npm run install:balancer",
-    "install:balancer": "cd reference/balancer-v2-monorepo && yarn",
+    "install:balancer": "cd reference/balancer-v2-monorepo && yarn && yarn workspace @balancer-labs/balancer-js build",
     "lint": "npm run lint:check",
     "lint:check": "npm run solhint:check && npm run prettier:check && npm run mdlint:check",
     "lint:fix": "npm run solhint:fix && npm run prettier:fix && npm run eslint:fix && npm run mdlint:fix",
