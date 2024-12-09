@@ -153,6 +153,6 @@ abstract contract BaseTest is Test {
 
     function _skip(uint256 aTime) internal {
         vm.roll(vm.getBlockNumber() + 1);
-        vm.warp(vm.getBlockTimestamp() + aTime);
+        skip(aTime);
     }
 }
