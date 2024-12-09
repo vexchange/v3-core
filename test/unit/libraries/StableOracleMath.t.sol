@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import { StableOracleMath, StableMath } from "src/libraries/StableOracleMath.sol";
 import { Constants } from "src/Constants.sol";
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import {StableOracleMathCanonical} from "../../__mocks/StableOracleMathCanonical.sol";
 
 contract StableOracleMathTest is Test {
 
@@ -34,13 +35,25 @@ contract StableOracleMathTest is Test {
         assertEq(lPrice, 999157828903224444);
     }
 
-    function testCalcSpotPrice_VerySmallAmounts(uint256 aToken0Amt, uint256 aToken1Amt) external {
+    function testCalcSpotPrice_CanonicalVersion_VerySmallAmounts(uint256 aToken0Amt, uint256 aToken1Amt) external {
         // assume - if token amounts exceed these amounts then they will probably not revert
         uint256 lToken0Amt = bound(aToken0Amt, 1, 1e6) ;
         uint256 lToken1Amt = bound(aToken1Amt, 1, 6e6);
 
         // act & assert - reverts when the amount is very small
         vm.expectRevert();
-        uint256 lPrice = StableOracleMath.calcSpottPrice(_defaultAmp, lToken0Amt, lToken1Amt);
+        uint256 lPrice = StableOracleMathCanonical.calcSpotPrice(_defaultAmp, lToken0Amt, lToken1Amt);
+    }
+
+    function testCalcSpotPrice_VerySmallAmounts(uint256 aToken0Amt, uint256 aToken1Amt) external {
+        // assume
+        uint256 lToken0Amt = bound(aToken0Amt, 1, 1e6) ;
+        uint256 lToken1Amt = bound(aToken1Amt, 1, 6e6);
+
+        // act - does not revert in this case, but instead just returns 1e18
+        uint256 lPrice = StableOracleMath.calcSpotPrice(_defaultAmp, lToken0Amt, lToken1Amt);
+
+        // assert
+        assertEq(lPrice, 1e18);
     }
 }
