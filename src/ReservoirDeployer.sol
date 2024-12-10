@@ -17,6 +17,8 @@ contract ReservoirDeployer {
     error DeployFactoryFailed();
     error ConstantProductHash();
     error StableHash();
+    error Threshold();
+    error NotOwner();
 
     // Steps.
     uint256 public constant TERMINAL_STEP = 3;
@@ -26,7 +28,7 @@ contract ReservoirDeployer {
     bytes32 public constant FACTORY_HASH = bytes32(0x87b0f73fafcf4bb41e013c8423dc679f6885527007d6c3f1e1834a670cbaadc5);
     bytes32 public constant CONSTANT_PRODUCT_HASH =
         bytes32(0xe174de1f7ab5f7c871f23787d956a8d1b4ebbb3b195eb2d6af27fb3a8c9e812e);
-    bytes32 public constant STABLE_HASH = bytes32(0x37118cc4f3b41471e6e52968fd506b80bbb1395764db8498cb3f4c4cfb8ab35c);
+    bytes32 public constant STABLE_HASH = bytes32(0x3ae886aee24fa2cc0144d24306033a7ed47e91bc0f962e4bffcef5922ae175f5);
 
     // Deployment addresses.
     GenericFactory public factory;
@@ -129,7 +131,7 @@ contract ReservoirDeployer {
         uint256 lGuardian3Support = proposals[guardian3][msg.sender];
 
         uint256 lSupport = lGuardian1Support + lGuardian2Support + lGuardian3Support;
-        require(lSupport >= GUARDIAN_THRESHOLD, "DEPLOYER: THRESHOLD");
+        require(lSupport >= GUARDIAN_THRESHOLD, Threshold());
 
         owner = msg.sender;
     }
@@ -141,7 +143,7 @@ contract ReservoirDeployer {
     address public owner = address(0);
 
     modifier onlyOwner() {
-        require(msg.sender == owner, "DEPLOYER: NOT_OWNER");
+        require(msg.sender == owner, NotOwner());
         _;
     }
 

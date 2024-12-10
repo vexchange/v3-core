@@ -41,7 +41,7 @@ contract ReservoirTimelockTest is BaseTest {
     function testSetCustomSwapFee_NotAdmin() external allPairs {
         // act & assert
         vm.prank(_alice);
-        vm.expectRevert(_timelock.Unauthorized.selector);
+        vm.expectRevert(ReservoirTimelock.Unauthorized.selector);
         _timelock.setCustomSwapFee(_factory, address(_pair), 500);
     }
 
@@ -60,7 +60,7 @@ contract ReservoirTimelockTest is BaseTest {
     function testSetCustomPlatformFee_NotAdmin() external allPairs {
         // act & assert
         vm.prank(_alice);
-        vm.expectRevert(_timelock.Unauthorizedselector);
+        vm.expectRevert(ReservoirTimelock.Unauthorized.selector);
         _timelock.setCustomPlatformFee(_factory, address(_pair), 500);
     }
 
@@ -82,7 +82,7 @@ contract ReservoirTimelockTest is BaseTest {
     function testRampA_NotAdmin() external {
         // act & assert
         vm.prank(_alice);
-        vm.expectRevert(_timelock.Unauthorized.selector);
+        vm.expectRevert(ReservoirTimelock.Unauthorized.selector);
         _timelock.rampA(_factory, address(_stablePair), 500, 500);
     }
 }
