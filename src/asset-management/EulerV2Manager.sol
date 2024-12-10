@@ -206,7 +206,6 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
     }
 
     function _doInvest(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aAmount) private {
-        require(aToken.balanceOf(address(this)) == aAmount, "AM: TOKEN_AMOUNT_MISMATCH");
         SafeTransferLib.safeApprove(address(aToken), address(aVault), aAmount);
 
         uint256 lSharesReceived = aVault.deposit(aAmount, address(this));
