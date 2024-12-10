@@ -71,7 +71,7 @@ contract StableOracleMathTest is Test {
         assertEq(lPrice, 1e18);
     }
 
-    function testEstimated(uint256 aReserve0, uint256 aReserve1) external {
+    function testCalculatedSpotPriceIsCloseToEstimated(uint256 aReserve0, uint256 aReserve1) external {
         // assume
         uint256 lReserve0 = bound(aReserve0, 1e18, 1000e18);
         uint256 lReserve1 = bound(aReserve1, 1e18, 1000e18);
