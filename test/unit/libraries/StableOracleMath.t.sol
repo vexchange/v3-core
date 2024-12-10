@@ -2,11 +2,14 @@
 pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
+import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { StableOracleMath, StableMath } from "src/libraries/StableOracleMath.sol";
 import { Constants } from "src/Constants.sol";
 import { StableOracleMathCanonical } from "test/__mocks/StableOracleMathCanonical.sol";
 
 contract StableOracleMathTest is Test {
+    using FixedPointMathLib for uint256;
+
     uint256 internal _defaultAmp = Constants.DEFAULT_AMP_COEFF * StableMath.A_PRECISION;
 
     // estimates the spot price by giving a very small input to simulate dx (an infinitesimally small x)
@@ -18,7 +21,7 @@ contract StableOracleMathTest is Test {
         uint256 N_A
     ) internal pure returns (uint256 rPrice) {
         uint256 lInputAmt = 1e8; // anything smaller than 1e7 the error becomes larger, as experimented
-        uint256 lOut = _getAmountOut(lInputAmt, reserve0, reserve1, token0Multiplier, token1Multiplier, true, 0, N_A);
+        uint256 lOut = StableMath._getAmountOut(lInputAmt, reserve0, reserve1, token0Multiplier, token1Multiplier, true, 0, N_A);
         rPrice = lOut.divWadUp(lInputAmt);
     }
 
