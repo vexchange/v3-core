@@ -35,7 +35,6 @@ library StableOracleMathCanonical {
         // dx = a.x.y.2 + a.y^2 - b.y
         uint256 derivativeX = axy2 + ((a * reserve1).mulWad(reserve1)) - (b.mulWad(reserve1));
 
-
         // dy = a.x.y.2 + a.x^2 - b.x
         uint256 derivativeY = axy2 + ((a * reserve0).mulWad(reserve0)) - (b.mulWad(reserve0));
 
