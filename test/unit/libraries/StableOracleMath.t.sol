@@ -4,7 +4,6 @@ pragma solidity ^0.8.10;
 import "forge-std/Test.sol";
 import { StableOracleMath, StableMath } from "src/libraries/StableOracleMath.sol";
 import { Constants } from "src/Constants.sol";
-import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
 import { StableOracleMathCanonical } from "test/__mocks/StableOracleMathCanonical.sol";
 
 contract StableOracleMathTest is Test {
@@ -54,7 +53,7 @@ contract StableOracleMathTest is Test {
 
         // act & assert - reverts when the amount is very small
         vm.expectRevert();
-        uint256 lPrice = StableOracleMathCanonical.calcSpotPrice(_defaultAmp, lToken0Amt, lToken1Amt);
+        StableOracleMathCanonical.calcSpotPrice(_defaultAmp, lToken0Amt, lToken1Amt);
     }
 
     function testCalcSpotPrice_VerySmallAmounts(uint256 aToken0Amt, uint256 aToken1Amt) external {

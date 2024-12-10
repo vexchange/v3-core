@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
-import { console2 } from "forge-std/console2.sol";
 import { LogCompression } from "src/libraries/LogCompression.sol";
 import { StableMath } from "src/libraries/StableMath.sol";
 
@@ -76,6 +75,4 @@ library StableOracleMath {
         // result of zero is therefore only possible with zero balances, which are prevented via other means.
         spotPrice = derivativeX.divWadUp(derivativeY);
     }
-
-
 }
