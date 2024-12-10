@@ -54,7 +54,7 @@ contract StablePairTest is BaseTest {
         _factory.write("SP::amplificationCoefficient", StableMath.MIN_A - 1);
 
         // act & assert
-        vm.expectRevert("FACTORY: DEPLOY_FAILED");
+        vm.expectRevert(GenericFactory.DeployFailed.selector);
         _createPair(address(_tokenC), address(_tokenD), 1);
     }
 
@@ -63,7 +63,7 @@ contract StablePairTest is BaseTest {
         _factory.write("SP::amplificationCoefficient", StableMath.MAX_A + 1);
 
         // act & assert
-        vm.expectRevert("FACTORY: DEPLOY_FAILED");
+        vm.expectRevert(GenericFactory.DeployFailed.selector);
         _createPair(address(_tokenC), address(_tokenD), 1);
     }
 

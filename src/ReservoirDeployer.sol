@@ -11,12 +11,21 @@ import { GenericFactory } from "src/GenericFactory.sol";
 contract ReservoirDeployer {
     using FactoryStoreLib for GenericFactory;
 
+    error GuardianAddressZero();
+    error OutOfOrder();
+    error FactoryHash();
+    error DeployFactoryFailed();
+    error ConstantProductHash();
+    error StableHash();
+    error Threshold();
+    error NotOwner();
+
     // Steps.
     uint256 public constant TERMINAL_STEP = 3;
     uint256 public step = 0;
 
     // Bytecode hashes.
-    bytes32 public constant FACTORY_HASH = bytes32(0x23864280088f6f71abfba47086784b3c758d1df19a55957e25f1f4bd9336792e);
+    bytes32 public constant FACTORY_HASH = bytes32(0x87b0f73fafcf4bb41e013c8423dc679f6885527007d6c3f1e1834a670cbaadc5);
     bytes32 public constant CONSTANT_PRODUCT_HASH =
         bytes32(0xe174de1f7ab5f7c871f23787d956a8d1b4ebbb3b195eb2d6af27fb3a8c9e812e);
     bytes32 public constant STABLE_HASH = bytes32(0x3ae886aee24fa2cc0144d24306033a7ed47e91bc0f962e4bffcef5922ae175f5);
@@ -25,10 +34,7 @@ contract ReservoirDeployer {
     GenericFactory public factory;
 
     constructor(address aGuardian1, address aGuardian2, address aGuardian3) {
-        require(
-            aGuardian1 != address(0) && aGuardian2 != address(0) && aGuardian3 != address(0),
-            "DEPLOYER: GUARDIAN_ADDRESS_ZERO"
-        );
+        require(aGuardian1 != address(0) && aGuardian2 != address(0) && aGuardian3 != address(0), GuardianAddressZero());
         guardian1 = aGuardian1;
         guardian2 = aGuardian2;
         guardian3 = aGuardian3;
@@ -43,8 +49,8 @@ contract ReservoirDeployer {
     //////////////////////////////////////////////////////////////////////////*/
 
     function deployFactory(bytes memory aFactoryBytecode) external returns (GenericFactory) {
-        require(step == 0, "FAC_STEP: OUT_OF_ORDER");
-        require(keccak256(aFactoryBytecode) == FACTORY_HASH, "DEPLOYER: FACTORY_HASH");
+        require(step == 0, OutOfOrder());
+        require(keccak256(aFactoryBytecode) == FACTORY_HASH, FactoryHash());
 
         // Manual deployment from validated bytecode.
         address lFactoryAddress;
@@ -56,7 +62,7 @@ contract ReservoirDeployer {
                     mload(aFactoryBytecode) // size
                 )
         }
-        require(lFactoryAddress != address(0), "FAC_STEP: DEPLOYMENT_FAILED");
+        require(lFactoryAddress != address(0), DeployFactoryFailed());
 
         // Write the factory address so we can start configuring it.
         factory = GenericFactory(lFactoryAddress);
@@ -75,8 +81,8 @@ contract ReservoirDeployer {
     }
 
     function deployConstantProduct(bytes memory aConstantProductBytecode) external {
-        require(step == 1, "CP_STEP: OUT_OF_ORDER");
-        require(keccak256(aConstantProductBytecode) == CONSTANT_PRODUCT_HASH, "DEPLOYER: CP_HASH");
+        require(step == 1, OutOfOrder());
+        require(keccak256(aConstantProductBytecode) == CONSTANT_PRODUCT_HASH, ConstantProductHash());
 
         // Add curve & curve specific parameters.
         factory.addCurve(aConstantProductBytecode);
@@ -87,8 +93,8 @@ contract ReservoirDeployer {
     }
 
     function deployStable(bytes memory aStableBytecode) external {
-        require(step == 2, "SP_STEP: OUT_OF_ORDER");
-        require(keccak256(aStableBytecode) == STABLE_HASH, "DEPLOYER: STABLE_HASH");
+        require(step == 2, OutOfOrder());
+        require(keccak256(aStableBytecode) == STABLE_HASH, StableHash());
 
         // Add curve & curve specific parameters.
         factory.addCurve(aStableBytecode);
@@ -125,7 +131,7 @@ contract ReservoirDeployer {
         uint256 lGuardian3Support = proposals[guardian3][msg.sender];
 
         uint256 lSupport = lGuardian1Support + lGuardian2Support + lGuardian3Support;
-        require(lSupport >= GUARDIAN_THRESHOLD, "DEPLOYER: THRESHOLD");
+        require(lSupport >= GUARDIAN_THRESHOLD, Threshold());
 
         owner = msg.sender;
     }
@@ -137,7 +143,7 @@ contract ReservoirDeployer {
     address public owner = address(0);
 
     modifier onlyOwner() {
-        require(msg.sender == owner, "DEPLOYER: NOT_OWNER");
+        require(msg.sender == owner, NotOwner());
         _;
     }
 
