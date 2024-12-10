@@ -24,7 +24,7 @@ contract GenericFactoryTest is BaseTest {
         uint256 lCurveId = bound(aCurveId, 0, 1);
 
         // act & assert
-        vm.expectRevert("_factory.DeployFailed.selector");
+        vm.expectRevert(GenericFactory.DeployFailed.selector);
         _createPair(address(_tokenE), address(_tokenA), lCurveId);
     }
 
@@ -33,7 +33,7 @@ contract GenericFactoryTest is BaseTest {
         uint256 lCurveId = bound(aCurveId, 0, 1);
 
         // act & assert
-//        vm.expectRevert(_factory.ZeroAddress.selector);
+        vm.expectRevert(GenericFactory.ZeroAddress.selector);
         _createPair(address(0), address(_tokenA), lCurveId);
     }
 
@@ -51,7 +51,7 @@ contract GenericFactoryTest is BaseTest {
         uint256 lCurveId = bound(aCurveId, 0, 1);
 
         // act & assert
-        vm.expectRevert("_factory.IdenticalAddresses.selector");
+        vm.expectRevert(GenericFactory.IdenticalAddresses.selector);
         _createPair(address(_tokenD), address(_tokenD), lCurveId);
     }
 
@@ -60,7 +60,7 @@ contract GenericFactoryTest is BaseTest {
         uint256 lCurveId = bound(aCurveId, 0, 1);
 
         // act & assert
-        vm.expectRevert("PairExists()");
+        vm.expectRevert(GenericFactory.PairExists.selector);
         _createPair(address(_tokenA), address(_tokenB), lCurveId);
     }
 
