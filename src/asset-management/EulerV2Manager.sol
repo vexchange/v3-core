@@ -289,9 +289,11 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
         onlyGuardianOrOwner
         nonReentrant
     {
+        IERC4626 lVault = assetVault[aAsset];
+        if (address(lVault) == address(0)) return;
+
         // pull assets from guardian / owner
         SafeTransferLib.safeTransferFrom(address(aAsset), msg.sender, address(this), aAmount);
-        IERC4626 lVault = assetVault[aAsset];
         SafeTransferLib.safeApprove(address(aAsset), address(lVault), aAmount);
         uint256 lNewShares = lVault.deposit(aAmount, address(this));
 
