@@ -185,7 +185,9 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
             _doDivest(aPair, lToken1, lToken1Vault, lAmount1Change);
         }
 
-        // transfer tokens to/from the pair
+        if (aAmount0Change < 0) SafeTransferLib.safeApprove(address(lToken0), address(aPair), uint256(-aAmount0Change));
+        if (aAmount1Change < 0) SafeTransferLib.safeApprove(address(lToken1), address(aPair), uint256(-aAmount1Change));
+        // transfer tokens to/from pair
         aPair.adjustManagement(aAmount0Change, aAmount1Change);
 
         // transfer the managed tokens to the destination
@@ -202,7 +204,6 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
         _decreaseShares(aPair, aToken, aVault, lSharesBurned);
 
         emit Divestment(aPair, aToken, lSharesBurned);
-        SafeTransferLib.safeApprove(address(aToken), address(aPair), aAmount);
     }
 
     function _doInvest(IAssetManagedPair aPair, IERC20 aToken, IERC4626 aVault, uint256 aAmount) private {
