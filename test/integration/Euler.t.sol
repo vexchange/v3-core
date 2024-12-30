@@ -603,7 +603,10 @@ contract EulerIntegrationTest is BaseTest {
         (int256 lExpectedToken0Calldata, int256 lExpectedToken1Calldata) =
             _pair.token0() == USDC ? (int256(-10), int256(0)) : (int256(0), int256(-10));
         _tokenA.mint(address(_pair), lReserveTokenA * 2);
-        vm.expectCall(address(_manager), abi.encodeCall(_manager.returnAsset, (_pair.token0() == USDC, 10)));
+        vm.expectCall(
+            address(_manager),
+            abi.encodeCall(_manager.returnAsset, (_pair.token0() == USDC ? 10 : 0, _pair.token1() == USDC ? 10 : 0))
+        );
         vm.expectCall(
             address(_pair), abi.encodeCall(_pair.adjustManagement, (lExpectedToken0Calldata, lExpectedToken1Calldata))
         );
@@ -636,7 +639,10 @@ contract EulerIntegrationTest is BaseTest {
         (int256 lExpectedToken0Calldata, int256 lExpectedToken1Calldata) =
             _pair.token0() == USDC ? (int256(-10), int256(0)) : (int256(0), int256(-10));
         _tokenA.mint(address(_pair), lReserveTokenA * 2);
-        vm.expectCall(address(_manager), abi.encodeCall(_manager.returnAsset, (_pair.token0() == USDC, 10)));
+        vm.expectCall(
+            address(_manager),
+            abi.encodeCall(_manager.returnAsset, (_pair.token0() == USDC ? 10 : 0, _pair.token1() == USDC ? 10 : 0))
+        );
         vm.expectCall(
             address(_pair), abi.encodeCall(_pair.adjustManagement, (lExpectedToken0Calldata, lExpectedToken1Calldata))
         );

@@ -26,6 +26,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
     event Divestment(IAssetManagedPair pair, IERC20 token, uint256 shares);
 
     error OutstandingSharesForVault();
+    error ReturnAssetZeroAmount();
 
     /// @dev Mapping from an ERC20 token to an Euler V2 vault.
     /// This implies that for a given asset, there can only be one vault at any one time.
@@ -235,12 +236,9 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
         _adjustManagement(lPair, lAmount0Change, lAmount1Change);
     }
 
-    function returnAsset(bool aToken0, uint256 aAmount) external {
-        require(aAmount > 0, "AM: ZERO_AMOUNT_REQUESTED");
-        IAssetManagedPair lPair = IAssetManagedPair(msg.sender);
-        int256 lAmount0Change = aToken0 ? -aAmount.toInt256() : int256(0);
-        int256 lAmount1Change = aToken0 ? int256(0) : -aAmount.toInt256();
-        _adjustManagement(lPair, lAmount0Change, lAmount1Change);
+    function returnAsset(uint256 aToken0Amt, uint256 aToken1Amt) external {
+        require(aToken0Amt > 0 || aToken1Amt > 0, ReturnAssetZeroAmount());
+        _adjustManagement(IAssetManagedPair(msg.sender), -aToken0Amt.toInt256(), -aToken1Amt.toInt256());
     }
 
     function _calculateChangeAmount(uint256 aReserve, uint256 aManaged) internal view returns (int256 rAmountChange) {

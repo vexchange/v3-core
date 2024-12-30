@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
+import { SafeCast } from "@openzeppelin/utils/math/SafeCast.sol";
+
 import { IAssetManager, IERC20 } from "src/interfaces/IAssetManager.sol";
 import { IAssetManagedPair } from "src/interfaces/IAssetManagedPair.sol";
 
 contract AssetManager is IAssetManager {
+    using SafeCast for uint256;
+
     mapping(IAssetManagedPair => mapping(IERC20 => uint256)) public getBalance;
 
     function adjustManagement(IAssetManagedPair aPair, int256 aToken0Amount, int256 aToken1Amount) public {
@@ -44,11 +48,10 @@ contract AssetManager is IAssetManager {
     // solhint-disable-next-line no-empty-blocks
     function afterLiquidityEvent() external { }
 
-    function returnAsset(bool aToken0, uint256 aAmount) external {
+    function returnAsset(uint256 aToken0Amt, uint256 aToken1Amt) external {
         IAssetManagedPair lPair = IAssetManagedPair(msg.sender);
-        int256 lAmount0Change = -int256(aToken0 ? aAmount : 0);
-        int256 lAmount1Change = -int256(aToken0 ? 0 : aAmount);
-        (aToken0 ? lPair.token0() : lPair.token1()).approve(address(msg.sender), aAmount);
-        adjustManagement(lPair, lAmount0Change, lAmount1Change);
+        lPair.token0().approve(address(msg.sender), aToken0Amt);
+        lPair.token1().approve(address(msg.sender), aToken1Amt);
+        adjustManagement(lPair, -aToken0Amt.toInt256(), -aToken1Amt.toInt256());
     }
 }

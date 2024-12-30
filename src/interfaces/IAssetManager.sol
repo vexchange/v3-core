@@ -14,5 +14,5 @@ interface IAssetManager {
 
     /// @notice called by the pair when it requires assets managed by the manager to be returned to the pair
     /// in order to fulfill swap requests or burn requests
-    function returnAsset(bool aToken0, uint256 aAmount) external;
+    function returnAsset(uint256 aToken0Amt, uint256 aToken1Amt) external;
 }
