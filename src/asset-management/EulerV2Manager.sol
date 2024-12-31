@@ -175,6 +175,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
                 lAmount0Change = uint256(-aAmount0Change);
             }
             _doDivest(aPair, lToken0, lToken0Vault, lAmount0Change);
+            SafeTransferLib.safeApprove(address(lToken0), address(aPair), uint256(-aAmount0Change));
         }
         if (aAmount1Change < 0) {
             uint256 lAmount1Change;
@@ -182,10 +183,9 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
                 lAmount1Change = uint256(-aAmount1Change);
             }
             _doDivest(aPair, lToken1, lToken1Vault, lAmount1Change);
+            SafeTransferLib.safeApprove(address(lToken1), address(aPair), uint256(-aAmount1Change));
         }
 
-        if (aAmount0Change < 0) SafeTransferLib.safeApprove(address(lToken0), address(aPair), uint256(-aAmount0Change));
-        if (aAmount1Change < 0) SafeTransferLib.safeApprove(address(lToken1), address(aPair), uint256(-aAmount1Change));
         // transfer tokens to/from pair
         aPair.adjustManagement(aAmount0Change, aAmount1Change);
 
