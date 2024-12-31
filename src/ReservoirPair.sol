@@ -520,7 +520,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
             aCurrRawPrice.percentDelta(aPrevClampedPrice) <= maxChangeRate * aTimeElapsed;
         bool lPerTradeWithinThreshold = aCurrRawPrice.percentDelta(aPrevClampedPrice) <= maxChangePerTrade;
         if (
-            (lRateOfChangeWithinThreshold && lPerTradeWithinThreshold) || aPreviousTimestamp == 0 // first ever calculation of the clamped price, and so should be set to the raw price
+            lRateOfChangeWithinThreshold && lPerTradeWithinThreshold || aPreviousTimestamp == 0 // first ever calculation of the clamped price, and so should be set to the raw price
         ) {
             (rClampedPrice, rClampedLogPrice) = (aCurrRawPrice, aCurrLogRawPrice);
         } else {
