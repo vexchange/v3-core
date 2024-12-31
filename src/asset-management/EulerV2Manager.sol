@@ -251,13 +251,10 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
     }
 
     function _calculateChangeAmount(uint256 aReserve, uint256 aManaged) internal view returns (int256 rAmountChange) {
-        if (aManaged * Constants.WAD < aReserve * lowerThreshold) {
+        if (
+            aManaged * Constants.WAD < aReserve * lowerThreshold || aManaged * Constants.WAD > aReserve * upperThreshold
+        ) {
             rAmountChange = (aReserve.mulWad(uint256(lowerThreshold).avg(upperThreshold)) - aManaged).toInt256();
-            assert(rAmountChange > 0);
-        } else if (aManaged * Constants.WAD > aReserve * upperThreshold) {
-            rAmountChange =
-                aReserve.mulWad(uint256(lowerThreshold).avg(upperThreshold)).toInt256() - aManaged.toInt256();
-            assert(rAmountChange < 0);
         }
     }
 
