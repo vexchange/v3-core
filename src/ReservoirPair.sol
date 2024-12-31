@@ -69,8 +69,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         token0 = aToken0;
         token1 = aToken1;
 
-        token0PrecisionMultiplier = uint128(10) ** (18 - aToken0.decimals()) ;
-        token1PrecisionMultiplier = uint128(10) ** (18 - aToken1.decimals()) ;
+        token0PrecisionMultiplier = uint128(10) ** (18 - aToken0.decimals());
+        token1PrecisionMultiplier = uint128(10) ** (18 - aToken1.decimals());
         swapFeeName = keccak256(bytes(aSwapFeeName));
 
         updateSwapFee();

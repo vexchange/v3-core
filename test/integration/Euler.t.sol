@@ -987,7 +987,9 @@ contract EulerIntegrationTest is BaseTest {
 
         // act - adjustManagement should still succeed despite extra tokens
         int256 lAmtToManage = 2e6;
-        _manager.adjustManagement(_pair, USDC == _pair.token0() ? lAmtToManage : int256(0), USDC == _pair.token1() ? lAmtToManage : int256(0));
+        _manager.adjustManagement(
+            _pair, USDC == _pair.token0() ? lAmtToManage : int256(0), USDC == _pair.token1() ? lAmtToManage : int256(0)
+        );
 
         // assert
         assertGt(USDC.balanceOf(address(_manager)), 0);
@@ -998,12 +1000,16 @@ contract EulerIntegrationTest is BaseTest {
         // arrange
         int256 lAmtToManage = 2e6;
         _increaseManagementOneToken(lAmtToManage);
-        uint256 lUnexpectedTokens = 33222;
+        uint256 lUnexpectedTokens = 33_222;
         _deal(address(USDC), address(_manager), lUnexpectedTokens);
 
         // act
         uint256 lBalance = _manager.getBalance(_pair, USDC);
-        _manager.adjustManagement(_pair, _pair.token0() == USDC ? -int256(lBalance) : int256(0), _pair.token1() == USDC ? -int256(lBalance) : int256(0));
+        _manager.adjustManagement(
+            _pair,
+            _pair.token0() == USDC ? -int256(lBalance) : int256(0),
+            _pair.token1() == USDC ? -int256(lBalance) : int256(0)
+        );
 
         // assert
         assertEq(_manager.getBalance(_pair, USDC), 0);
