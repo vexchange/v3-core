@@ -38,6 +38,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     // Multipliers for each pooled token's precision to get to POOL_PRECISION_DECIMALS. For example,
     // TBTC has 18 decimals, so the multiplier should be 1. WBTC has 8, so the multiplier should be
     // 10 ** 18 / 10 ** 8 => 10 ** 10.
+    // Only supports tokens with decimals <= 18.
     uint128 public immutable token0PrecisionMultiplier;
     uint128 public immutable token1PrecisionMultiplier;
 
