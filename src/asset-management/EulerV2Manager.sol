@@ -276,8 +276,8 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
                 aTokens[i],
                 msg.sender,
                 // the amounts specified in the argument might not be the actual amounts disimbursed by the distributor,
-                // due to the possibility of having done the claim previously thus it is necessary to use balanceOf
-                // to transfer the correct amount
+                // due to the possibility of having done the claim previously
+                // thus it is necessary to use `balanceOf` to transfer the correct amount
                 IERC20(aTokens[i]).balanceOf(address(this))
             );
         }
