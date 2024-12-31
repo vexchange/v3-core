@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
 
 import { IReservoirCallee } from "src/interfaces/IReservoirCallee.sol";
 import { IGenericFactory } from "src/interfaces/IGenericFactory.sol";
@@ -17,6 +18,7 @@ contract StablePair is ReservoirPair {
     using FactoryStoreLib for IGenericFactory;
     using Bytes32Lib for bytes32;
     using FixedPointMathLib for uint256;
+    using SafeCastLib for uint256;
 
     string private constant PAIR_SWAP_FEE_NAME = "SP::swapFee";
     string private constant AMPLIFICATION_COEFFICIENT_NAME = "SP::amplificationCoefficient";
@@ -126,7 +128,7 @@ contract StablePair is ReservoirPair {
         // with 0 decimal places).
         // Which results in 112 + 60 + 1 = 173 bits.
         // Which fits into uint192.
-        lastInvariant = uint192(lNewLiq);
+        lastInvariant = lNewLiq.toUint192();
         lastInvariantAmp = _getCurrentAPrecise();
 
         emit Mint(msg.sender, lAmount0, lAmount1);
