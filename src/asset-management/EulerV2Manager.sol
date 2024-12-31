@@ -20,7 +20,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
 
     event Guardian(address newGuardian);
     event WindDownMode(bool windDown);
-    event VaultForAsset(IERC20 asset, IERC4626 vault);
+    event VaultForAsset(IERC20 indexed asset, IERC4626 indexed vault);
     event Thresholds(uint128 newLowerThreshold, uint128 newUpperThreshold);
     event Investment(IAssetManagedPair pair, IERC20 token, uint256 shares);
     event Divestment(IAssetManagedPair pair, IERC20 token, uint256 shares);
