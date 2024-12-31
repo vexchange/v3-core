@@ -74,24 +74,33 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
             revert OutstandingSharesForVault();
         }
 
-        assetVault[aAsset] = aVault;
-        emit VaultForAsset(aAsset, aVault);
+        if (aVault != lVault) {
+            assetVault[aAsset] = aVault;
+            emit VaultForAsset(aAsset, aVault);
+        }
     }
 
     function setGuardian(address aGuardian) external onlyOwner {
-        guardian = aGuardian;
-        emit Guardian(aGuardian);
+        if (aGuardian != guardian) {
+            guardian = aGuardian;
+            emit Guardian(aGuardian);
+        }
     }
 
     function setWindDownMode(bool aWindDown) external onlyGuardianOrOwner {
-        windDownMode = aWindDown;
-        emit WindDownMode(aWindDown);
+        if (aWindDown != windDownMode) {
+            windDownMode = aWindDown;
+            emit WindDownMode(aWindDown);
+        }
     }
 
     function setThresholds(uint128 aLowerThreshold, uint128 aUpperThreshold) external onlyGuardianOrOwner {
         require(aUpperThreshold <= 1e18 && aUpperThreshold >= aLowerThreshold, "AM: INVALID_THRESHOLDS");
-        (lowerThreshold, upperThreshold) = (aLowerThreshold, aUpperThreshold);
-        emit Thresholds(aLowerThreshold, aUpperThreshold);
+
+        if (aLowerThreshold != lowerThreshold || aUpperThreshold != upperThreshold) {
+            (lowerThreshold, upperThreshold) = (aLowerThreshold, aUpperThreshold);
+            emit Thresholds(aLowerThreshold, aUpperThreshold);
+        }
     }
 
     function rawCall(address aTarget, bytes calldata aCalldata, uint256 aValue)
