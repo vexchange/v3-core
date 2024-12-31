@@ -392,7 +392,7 @@ contract StablePair is ReservoirPair {
         internal
         view
         override
-        returns (uint256, int256)
+        returns (uint256 spotPrice, int256 logSpotPrice)
     {
         return StableOracleMath.calcLogPrice(
             _getCurrentAPrecise(), aBalance0 * token0PrecisionMultiplier, aBalance1 * token1PrecisionMultiplier
