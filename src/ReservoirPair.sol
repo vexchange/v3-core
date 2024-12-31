@@ -477,7 +477,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
 
     //////////////////////////////////////////////////////////////////////////*/
 
-    event ClampParamsUpdated(uint128 newMaxChangeRatePerSecond, uint128 newMaxChangePerTrade);
+    event ClampParams(uint128 newMaxChangeRatePerSecond, uint128 newMaxChangePerTrade);
 
     // 1% per second which is 60% per minute
     uint256 internal constant MAX_CHANGE_PER_SEC = 0.01e18;
@@ -502,7 +502,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         require(0 < aMaxChangeRate && aMaxChangeRate <= MAX_CHANGE_PER_SEC, InvalidChangePerSecond());
         require(0 < aMaxChangePerTrade && aMaxChangePerTrade <= MAX_CHANGE_PER_TRADE, InvalidChangePerTrade());
 
-        emit ClampParamsUpdated(aMaxChangeRate, aMaxChangePerTrade);
+        emit ClampParams(aMaxChangeRate, aMaxChangePerTrade);
         maxChangeRate = aMaxChangeRate;
         maxChangePerTrade = aMaxChangePerTrade;
     }
