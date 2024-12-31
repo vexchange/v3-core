@@ -298,24 +298,15 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
         uint256 lOldTotalShares = totalShares[lVault];
         totalShares[lVault] = lOldTotalShares + lNewShares;
 
-        uint256 lSharesAllocated;
-        uint256 lLength = aPairs.length;
-        for (uint256 i = 0; i < lLength - 1; ++i) {
+        for (uint256 i = 0; i < aPairs.length; ++i) {
             uint256 lOldShares = shares[aPairs[i]][aAsset];
             // no need for fullMulDiv for real life amounts, assumes that lOldTotalShares != 0, which would be the case
             // if there are pairs to distribute to anyway
             uint256 lNewSharesEntitled = lNewShares.mulDiv(lOldShares, lOldTotalShares);
             shares[aPairs[i]][aAsset] = lOldShares + lNewSharesEntitled;
-            lSharesAllocated += lNewSharesEntitled;
+
+            lNewShares -= lNewSharesEntitled;
+            lOldTotalShares -= lOldShares;
         }
-
-        // the last in the list will take all the remaining shares, and sometimes will get 1 or 2 more than they're
-        // entitled to due to the rounding down in previous calculations for other pairs
-        // this is to prevent the sum of each pair+token's shares not summing up to totalShares
-        uint256 lSharesForLastPair = lNewShares - lSharesAllocated;
-
-        shares[aPairs[lLength - 1]][aAsset] += lSharesForLastPair;
-        lSharesAllocated += lSharesForLastPair;
-        require(lSharesAllocated == lNewShares, "AM: REWARD_SHARES_MISMATCH");
     }
 }
