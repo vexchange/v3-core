@@ -292,7 +292,10 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
             uint256 lReserveOut = lIsToken0 ? aReserve0 : aReserve1;
 
             if (lReserveOut - lTokenOutManaged < aAmount) {
-                assetManager.returnAsset(lIsToken0 ? aAmount - (lReserveOut - lTokenOutManaged) : 0, lIsToken0 ? 0 : aAmount - (lReserveOut - lTokenOutManaged));
+                assetManager.returnAsset(
+                    lIsToken0 ? aAmount - (lReserveOut - lTokenOutManaged) : 0,
+                    lIsToken0 ? 0 : aAmount - (lReserveOut - lTokenOutManaged)
+                );
                 require(_safeTransfer(aToken, aDestination, aAmount), TransferFailed());
             } else {
                 revert TransferFailed();
@@ -458,7 +461,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
 
             rAmtSkimmed = lTokenAmtManaged - type(uint104).max;
 
-            assetManager.returnAsset(aToken == token0 ? rAmtSkimmed : 0, aToken == token1 ? 0 :rAmtSkimmed);
+            assetManager.returnAsset(aToken == token0 ? rAmtSkimmed : 0, aToken == token1 ? rAmtSkimmed : 0);
             address(aToken).safeTransfer(lRecoverer, rAmtSkimmed);
         }
     }
