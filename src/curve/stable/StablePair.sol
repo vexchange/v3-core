@@ -241,8 +241,8 @@ contract StablePair is ReservoirPair {
         nonReentrant
         returns (uint256 rAmountOut)
     {
-        (uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast, uint16 lIndex) = getReserves();
         require(aAmount != 0, AmountZero());
+        (uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast, uint16 lIndex) = getReserves();
         uint256 lAmountIn;
         IERC20 lTokenOut;
 
