@@ -197,7 +197,7 @@ contract StablePair is ReservoirPair {
         uint256 amount1Optimal = aAmount0 * aReserve1 / aReserve0;
 
         if (amount1Optimal <= aAmount1) {
-            rToken1Fee = (swapFee * (aAmount1 - amount1Optimal)) / (2 * FEE_ACCURACY);
+            rToken1Fee = swapFee * (aAmount1 - amount1Optimal) / (2 * FEE_ACCURACY);
         } else {
             uint256 amount0Optimal = aAmount1 * aReserve0 / aReserve1;
             rToken0Fee = swapFee * (aAmount0 - amount0Optimal) / (2 * FEE_ACCURACY);
