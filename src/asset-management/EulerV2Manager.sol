@@ -27,6 +27,8 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
 
     error OutstandingSharesForVault();
     error ReturnAssetZeroAmount();
+    error InvestmentAttemptDuringWindDown();
+    error NoVaultForAsset();
 
     /// @dev Mapping from an ERC20 token to an Euler V2 vault.
     /// This implies that for a given asset, there can only be one vault at any one time.
@@ -159,26 +161,12 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
     {
         IERC20 lToken0 = aPair.token0();
         IERC20 lToken1 = aPair.token1();
-
         IERC4626 lToken0Vault = assetVault[lToken0];
         IERC4626 lToken1Vault = assetVault[lToken1];
 
-        // do not do anything if there isn't a designated vault for the token
-        if (address(lToken0Vault) == address(0)) {
-            aAmount0Change = 0;
-        }
-        if (address(lToken1Vault) == address(0)) {
-            aAmount1Change = 0;
-        }
-
-        if (windDownMode) {
-            if (aAmount0Change > 0) {
-                aAmount0Change = 0;
-            }
-            if (aAmount1Change > 0) {
-                aAmount1Change = 0;
-            }
-        }
+        if (address(lToken0Vault) == address(0)) require(aAmount0Change == 0, NoVaultForAsset());
+        if (address(lToken1Vault) == address(0)) require(aAmount1Change == 0, NoVaultForAsset());
+        if (windDownMode) require(aAmount0Change <= 0 && aAmount1Change <= 0, InvestmentAttemptDuringWindDown());
 
         // withdraw from the vault
         if (aAmount0Change < 0) {
@@ -234,13 +222,20 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
         IAssetManagedPair lPair = IAssetManagedPair(msg.sender);
         IERC20 lToken0 = lPair.token0();
         IERC20 lToken1 = lPair.token1();
+
         (uint256 lReserve0, uint256 lReserve1,,) = lPair.getReserves();
 
-        uint256 lToken0Managed = _getBalance(lPair, lToken0);
-        uint256 lToken1Managed = _getBalance(lPair, lToken1);
+        int256 lAmount0Change;
+        if (address(assetVault[lToken0]) != address(0)) {
+            uint256 lToken0Managed = _getBalance(lPair, lToken0);
+            lAmount0Change = _calculateChangeAmount(lReserve0, lToken0Managed);
+        }
 
-        int256 lAmount0Change = _calculateChangeAmount(lReserve0, lToken0Managed);
-        int256 lAmount1Change = _calculateChangeAmount(lReserve1, lToken1Managed);
+        int256 lAmount1Change;
+        if (address(assetVault[lToken1]) != address(0)) {
+            uint256 lToken1Managed = _getBalance(lPair, lToken1);
+            lAmount1Change = _calculateChangeAmount(lReserve1, lToken1Managed);
+        }
 
         _adjustManagement(lPair, lAmount0Change, lAmount1Change);
     }
@@ -250,11 +245,18 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
         _adjustManagement(IAssetManagedPair(msg.sender), -aToken0Amt.toInt256(), -aToken1Amt.toInt256());
     }
 
+    // calculates the amount of token to divest or invest based on the thresholds, and if windown mode is activated
     function _calculateChangeAmount(uint256 aReserve, uint256 aManaged) internal view returns (int256 rAmountChange) {
         if (
             aManaged * Constants.WAD < aReserve * lowerThreshold || aManaged * Constants.WAD > aReserve * upperThreshold
         ) {
-            rAmountChange = (aReserve.mulWad(uint256(lowerThreshold).avg(upperThreshold)) - aManaged).toInt256();
+            rAmountChange =
+                aReserve.mulWad(uint256(lowerThreshold).avg(upperThreshold)).toInt256() - aManaged.toInt256();
+
+            // only allow divesting if windDownMode is activated
+            if (windDownMode && rAmountChange > 0) {
+                rAmountChange = 0;
+            }
         }
     }
 

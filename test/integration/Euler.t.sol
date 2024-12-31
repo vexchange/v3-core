@@ -234,15 +234,19 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(_manager.windDownMode(), true);
     }
 
-    function testAdjustManagement_NoMarket(uint256 aAmountToManage) public allNetworks allPairs {
-        // assume - we want negative numbers too
-        int256 lAmountToManage = int256(bound(aAmountToManage, 0, type(uint256).max));
+    function testAdjustManagement_NoVaultForAsset(int256 aAmountToManage) public allNetworks allPairs {
+        // assume - we want any positive / negative numbers, just not zero
+        vm.assume(aAmountToManage != 0);
+
+        // arrange
+        IERC20 lToken0 = _pair.token0();
 
         // act
+        vm.expectRevert(EulerV2Manager.NoVaultForAsset.selector);
         _manager.adjustManagement(
             _pair,
-            _pair.token0() == USDC ? int256(0) : lAmountToManage,
-            _pair.token1() == USDC ? int256(0) : lAmountToManage
+            lToken0 == USDC ? int256(0) : aAmountToManage,
+            lToken0 == USDC ? aAmountToManage : int256(0)
         );
 
         // assert
@@ -339,20 +343,20 @@ contract EulerIntegrationTest is BaseTest {
 
         _manager.setWindDownMode(true);
         int256 lIncreaseAmt = 50e6;
+        IERC20 lToken0 = _pair.token0();
+        IERC20 lOtherPairToken0 = lOtherPair.token0();
 
-        // act
+        // act & assert - manual adjustments to increase management should fail
+        vm.expectRevert(EulerV2Manager.InvestmentAttemptDuringWindDown.selector);
         _manager.adjustManagement(
-            _pair, _pair.token0() == USDC ? lIncreaseAmt : int256(0), _pair.token1() == USDC ? lIncreaseAmt : int256(0)
+            _pair, lToken0 == USDC ? lIncreaseAmt : int256(0), lToken0 == USDC ?  int256(0) : lIncreaseAmt
         );
+        vm.expectRevert(EulerV2Manager.InvestmentAttemptDuringWindDown.selector);
         _manager.adjustManagement(
             lOtherPair,
-            lOtherPair.token0() == USDC ? lIncreaseAmt : int256(0),
-            lOtherPair.token1() == USDC ? lIncreaseAmt : int256(0)
+            lOtherPairToken0 == USDC ? lIncreaseAmt : int256(0),
+            lOtherPairToken0 == USDC ? int256(0) : lIncreaseAmt
         );
-
-        // assert
-        assertApproxEqAbs(_manager.getBalance(_pair, USDC), 300e6, 1);
-        assertEq(_manager.getBalance(lOtherPair, USDC), 0);
     }
 
     function testGetBalance(uint256 aAmountToManage) public allNetworks allPairs {
@@ -561,17 +565,18 @@ contract EulerIntegrationTest is BaseTest {
         _pair.burn(address(this));
         assertGt(_pair.token0() == USDC ? _pair.token0Managed() : _pair.token1Managed(), 0);
         uint256 lAmtManaged = _manager.getBalance(_pair, USDC);
+        IERC20 lToken0 = _pair.token0();
 
         // act
         _manager.setWindDownMode(true);
 
         // assert - burn should still succeed
         _pair.burn(address(this));
-        // this call to increase management should have no effect
+        vm.expectRevert(EulerV2Manager.InvestmentAttemptDuringWindDown.selector);
         _manager.adjustManagement(
             _pair,
-            _pair.token0() == USDC ? int256(100e6) : int256(0),
-            _pair.token1() == USDC ? int256(100e6) : int256(0)
+            lToken0 == USDC ? int256(100e6) : int256(0),
+            lToken0 == USDC ? int256(0) : int256(100e6)
         );
         assertEq(_manager.getBalance(_pair, USDC), lAmtManaged);
         // a call to decrease management should have an effect
