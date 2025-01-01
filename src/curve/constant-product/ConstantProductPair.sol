@@ -60,19 +60,15 @@ contract ConstantProductPair is ReservoirPair {
         // INVARIANT: `aSqrtOldK & aSqrtNewK < uint104` as _syncManaged ensures that both reserves fit into uint104.
         //            The sqrt of the product of the two reserves will fit into uint104 as well
         // INVARIANT: `aSqrtOldK < aSqrtNewK` as checked in _mintFee
-        // INVARIANT: `aPlatformFee < FEE_ACCURACY` enforced by setter function
-        // INVARIANT: `aCirculatingShares < uint104`  since the circulating shares are the geometric mean of the
-        // reserves
-        //            and that both reserves fit into uint104 as explained above, aCirculatingShares will fit into
-        // uint104 as well
+        // INVARIANT: `aPlatformFee <= FEE_ACCURACY` enforced by setter function
+        // INVARIANT: `aCirculatingShares < uint104`  since the circulating shares are the geometric mean of the reserves
+        //            and that both reserves fit into uint104 as explained above, aCirculatingShares will fit into uint104 as well
         unchecked {
             uint256 lScaledGrowth = aSqrtNewK * ACCURACY / aSqrtOldK; // ASSERT: < UINT256
-            uint256 lScaledMultiplier = ACCURACY - (SQUARED_ACCURACY / lScaledGrowth); // ASSERT: < UINT128
-            uint256 lScaledTargetOwnership = lScaledMultiplier * aPlatformFee / FEE_ACCURACY; // ASSERT: < UINT144
-                // during maths, ends < UINT128
+            uint256 lScaledMultiplier = ACCURACY - (SQUARED_ACCURACY / lScaledGrowth); // ASSERT: < UINT127
+            uint256 lScaledTargetOwnership = lScaledMultiplier * aPlatformFee / FEE_ACCURACY; // ASSERT: < UINT147 during maths, ends < UINT127, as max platform fee is 1e6 (20 bits)
 
-            rSharesToIssue = lScaledTargetOwnership * aCirculatingShares / (ACCURACY - lScaledTargetOwnership); // ASSERT:
-                // lScaledTargetOwnership < ACCURACY
+            rSharesToIssue = lScaledTargetOwnership * aCirculatingShares / (ACCURACY - lScaledTargetOwnership); // ASSERT: lScaledTargetOwnership < ACCURACY, so subtraction will not overflow
         }
     }
 
