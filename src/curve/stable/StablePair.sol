@@ -104,8 +104,8 @@ contract StablePair is ReservoirPair {
         uint256 lAmount1 = lBalance1 - lReserve1;
 
         (uint256 lFee0, uint256 lFee1) = _nonOptimalMintFee(lAmount0, lAmount1, lReserve0, lReserve1);
-        lReserve0 += uint104(lFee0);
-        lReserve1 += uint104(lFee1);
+        lReserve0 += lFee0;
+        lReserve1 += lFee1;
 
         (uint256 lTotalSupply, uint256 lOldLiq) = _mintFee(lReserve0, lReserve1);
 
