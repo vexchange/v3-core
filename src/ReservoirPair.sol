@@ -106,8 +106,10 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         uint32 aBlockTimestampLast,
         uint16 aIndex
     ) internal {
-        require(aBalance0 <= type(uint104).max && aBalance1 <= type(uint104).max, Overflow());
-        require(aReserve0 <= type(uint104).max && aReserve1 <= type(uint104).max, Overflow());
+        require(aBalance0 <= type(uint104).max, Overflow());
+        require(aBalance1 <= type(uint104).max, Overflow());
+        require(aReserve0 <= type(uint104).max, Overflow());
+        require(aReserve1 <= type(uint104).max, Overflow());
 
         uint32 lBlockTimestamp = uint32(block.timestamp); // invalid after year 2106
         uint32 lTimeElapsed;
