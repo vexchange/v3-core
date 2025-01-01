@@ -55,14 +55,14 @@ library StableOracleMath {
         uint256 axy2 = (a * 2 * reserve0).mulWad(reserve1); // n = 2
 
         uint256 by = b.mulWad(reserve1);
-        uint256 ay2 = ((a * reserve1).mulWad(reserve1));
+        uint256 ay2 = (a * reserve1).mulWad(reserve1);
         if (by > axy2 + ay2) return 1e18;
         // dx = a.x.y.2 + a.y^2 - b.y
         uint256 derivativeX = axy2 + ay2 - by;
 
         // dy = a.x.y.2 + a.x^2 - b.x
         uint256 bx = (b.mulWad(reserve0));
-        uint256 ax2 = ((a * reserve0).mulWad(reserve0));
+        uint256 ax2 = (a * reserve0).mulWad(reserve0);
         if (bx > axy2 + ax2) return 1e18;
         uint256 derivativeY = axy2 + ax2 - bx;
 
