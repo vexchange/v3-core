@@ -41,16 +41,13 @@ contract StablePair is ReservoirPair {
     uint64 public lastInvariantAmp;
 
     constructor(IERC20 aToken0, IERC20 aToken1) ReservoirPair(aToken0, aToken1, PAIR_SWAP_FEE_NAME) {
-        ampData.initialA = factory.read(AMPLIFICATION_COEFFICIENT_NAME).toUint64() * uint64(StableMath.A_PRECISION);
+        uint64 lImpreciseA = factory.read(AMPLIFICATION_COEFFICIENT_NAME).toUint64();
+        require(lImpreciseA >= StableMath.MIN_A && lImpreciseA <= StableMath.MAX_A, InvalidA());
+
+        ampData.initialA = lImpreciseA * uint64(StableMath.A_PRECISION);
         ampData.futureA = ampData.initialA;
         ampData.initialATime = uint64(block.timestamp);
         ampData.futureATime = uint64(block.timestamp);
-
-        require(
-            ampData.initialA >= StableMath.MIN_A * uint64(StableMath.A_PRECISION)
-                && ampData.initialA <= StableMath.MAX_A * uint64(StableMath.A_PRECISION),
-            InvalidA()
-        );
     }
 
     function rampA(uint64 aFutureARaw, uint64 aFutureATime) external onlyFactory {
