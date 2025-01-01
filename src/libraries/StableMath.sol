@@ -127,7 +127,7 @@ library StableMath {
         uint256 D = s;
         (xp0, xp1) = xp0 < xp1 ? (xp0, xp1) : (xp1, xp0);
         for (uint256 i = 0; i < MAX_LOOP_LIMIT; i++) {
-            uint256 dP = ((D * D) / xp0).fullMulDiv(D, xp1) / 4;
+            uint256 dP = ((D * D) / xp0).fullMulDiv(D, xp1) >> 2;
             prevD = D;
             D = ((N_A * s) / A_PRECISION + 2 * dP).fullMulDiv(D, (N_A - A_PRECISION) * D / A_PRECISION + 3 * dP);
             if (D.within1(prevD)) {
