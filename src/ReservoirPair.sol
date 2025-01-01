@@ -127,12 +127,13 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
                 // a new sample is not written for the first mint
                 // shortcut to calculate lTimeElapsed > 0 && aReserve0 > 0 && aReserve1 > 0
                 if (lTimeElapsed * aReserve0 * aReserve1 > 0) {
+                    if (lPrevious.timestamp != 0) assert(aBlockTimestampLast == lPrevious.timestamp);
                     (, int256 lLogInstantClampedPrice) = _calcClampedPrice(
                         lInstantRawPrice,
                         lLogInstantRawPrice,
                         LogCompression.fromLowResLog(lPrevious.logInstantClampedPrice),
                         lTimeElapsed,
-                        aBlockTimestampLast // assert: aBlockTimestampLast == lPrevious.timestamp
+                        aBlockTimestampLast
                     );
                     _updateOracleNewSample(
                         lPrevious, lLogInstantRawPrice, lLogInstantClampedPrice, lTimeElapsed, lBlockTimestamp, aIndex
