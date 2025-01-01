@@ -115,7 +115,6 @@ contract StablePair is ReservoirPair {
             // only happen if:
             // 1. both tokens have 0 decimals (1e18 is 60 bits) and the amounts are each around 68 bits
             // 2. both tokens have 6 decimals (1e12 is 40 bits) and the amounts are each around 88 bits
-            // in which case the mint will fail anyway because it would have reverted at _computeLiquidity
             rLiquidity = (lNewLiq - lOldLiq) * lTotalSupply / lOldLiq;
         }
         require(rLiquidity != 0, InsufficientLiqMinted());
