@@ -191,10 +191,10 @@ contract EulerIntegrationTest is BaseTest {
         vm.stopPrank();
 
         vm.startPrank(_bob);
-        vm.expectRevert("AM: UNAUTHORIZED");
+        vm.expectRevert(EulerV2Manager.Unauthorized.selector);
         _manager.setWindDownMode(false);
 
-        vm.expectRevert("AM: UNAUTHORIZED");
+        vm.expectRevert(EulerV2Manager.Unauthorized.selector);
         _manager.setThresholds(30, 30);
         vm.stopPrank();
     }
@@ -720,7 +720,7 @@ contract EulerIntegrationTest is BaseTest {
 
     function testSetThresholds_BreachMaximum() public allNetworks {
         // act & assert
-        vm.expectRevert("AM: INVALID_THRESHOLDS");
+        vm.expectRevert(EulerV2Manager.InvalidThresholds.selector);
         _manager.setThresholds(0, 1e18 + 1);
     }
 
@@ -730,7 +730,7 @@ contract EulerIntegrationTest is BaseTest {
         uint256 lThreshold = bound(aThreshold, 0, lLowerThreshold - 1);
 
         // act & assert
-        vm.expectRevert("AM: INVALID_THRESHOLDS");
+        vm.expectRevert(EulerV2Manager.InvalidThresholds.selector);
         _manager.setThresholds(lLowerThreshold, uint128(lThreshold));
     }
 
@@ -740,7 +740,7 @@ contract EulerIntegrationTest is BaseTest {
         uint256 lThreshold = bound(aThreshold, lUpperThreshold + 1, type(uint128).max);
 
         // act & assert
-        vm.expectRevert("AM: INVALID_THRESHOLDS");
+        vm.expectRevert(EulerV2Manager.InvalidThresholds.selector);
         _manager.setThresholds(uint128(lThreshold), lUpperThreshold);
     }
 

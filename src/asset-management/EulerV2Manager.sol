@@ -29,6 +29,8 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
     error ReturnAssetZeroAmount();
     error InvestmentAttemptDuringWindDown();
     error NoVaultForAsset();
+    error Unauthorized();
+    error InvalidThresholds();
 
     /// @dev Mapping from an ERC20 token to an Euler V2 vault.
     /// This implies that for a given asset, there can only be one vault at any one time.
@@ -60,7 +62,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
     //////////////////////////////////////////////////////////////////////////*/
 
     modifier onlyGuardianOrOwner() {
-        require(msg.sender == guardian || msg.sender == owner, "AM: UNAUTHORIZED");
+        require(msg.sender == guardian || msg.sender == owner, Unauthorized());
         _;
     }
 
@@ -97,7 +99,7 @@ contract EulerV2Manager is IAssetManager, Owned(msg.sender), RGT {
     }
 
     function setThresholds(uint128 aLowerThreshold, uint128 aUpperThreshold) external onlyGuardianOrOwner {
-        require(aUpperThreshold <= 1e18 && aUpperThreshold >= aLowerThreshold, "AM: INVALID_THRESHOLDS");
+        require(aUpperThreshold <= 1e18 && aUpperThreshold >= aLowerThreshold, InvalidThresholds());
 
         if (aLowerThreshold != lowerThreshold || aUpperThreshold != upperThreshold) {
             (lowerThreshold, upperThreshold) = (aLowerThreshold, aUpperThreshold);
