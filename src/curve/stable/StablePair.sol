@@ -293,7 +293,7 @@ contract StablePair is ReservoirPair {
         uint256 lReceived = lTokenOut == token0 ? lBalance1 - lReserve1 : lBalance0 - lReserve0;
         require(lReceived >= lAmountIn, InsufficientAmtIn());
 
-        _update(lBalance0, lBalance1, uint104(lReserve0), uint104(lReserve1), lBlockTimestampLast, lIndex);
+        _update(lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast, lIndex);
         emit Swap(msg.sender, lTokenOut == token1, lReceived, rAmountOut, aTo);
     }
 
