@@ -42,7 +42,10 @@ contract StablePair is ReservoirPair {
 
     constructor(IERC20 aToken0, IERC20 aToken1) ReservoirPair(aToken0, aToken1, PAIR_SWAP_FEE_NAME) {
         uint64 lImpreciseA = factory.read(AMPLIFICATION_COEFFICIENT_NAME).toUint64();
-        require(lImpreciseA >= StableMath.MIN_A && lImpreciseA <= StableMath.MAX_A, InvalidA());
+        unchecked {
+            // StableMath.MIN_A <= lImpreciseA <= StableMath.MAX_A
+            require(lImpreciseA - StableMath.MIN_A <= StableMath.MAX_A - StableMath.MIN_A, InvalidA());
+        }
 
         ampData.initialA = lImpreciseA * uint64(StableMath.A_PRECISION);
         ampData.futureA = ampData.initialA;
@@ -51,8 +54,10 @@ contract StablePair is ReservoirPair {
     }
 
     function rampA(uint64 aFutureARaw, uint64 aFutureATime) external onlyFactory {
-        require(aFutureARaw >= StableMath.MIN_A && aFutureARaw <= StableMath.MAX_A, InvalidA());
-
+        unchecked {
+            // StableMath.MIN_A <= aFutureRaw <= StableMath.MAX_A
+            require(aFutureARaw - StableMath.MIN_A <= StableMath.MAX_A - StableMath.MIN_A, InvalidA());
+        }
         uint64 lFutureAPrecise = aFutureARaw * uint64(StableMath.A_PRECISION);
 
         uint256 duration = aFutureATime - block.timestamp;
