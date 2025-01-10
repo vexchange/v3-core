@@ -2,7 +2,7 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 
-import { LogCompression } from "src/libraries/LogCompression.sol";
+import { LogCompression, LogExpMath } from "src/libraries/LogCompression.sol";
 
 contract LogCompressionTest is Test {
     address private _balancerLogCompression = address(200);
@@ -53,7 +53,7 @@ contract LogCompressionTest is Test {
         assertEq(lResLargest, 1_353_060); // 135.3060
 
         // once the input exceeds the max input above, it reverts
-        vm.expectRevert("EM: OUT_OF_BOUNDS");
+        vm.expectRevert(LogExpMath.LEM_OutOfBounds.selector);
         LogCompression.toLowResLog(2 ** 255);
     }
 
@@ -62,7 +62,7 @@ contract LogCompressionTest is Test {
         int256 lResSmallest = LogCompression.toLowResLog(1);
         assertEq(lResSmallest, -414_465); // -41.4465
 
-        vm.expectRevert("EM: OUT_OF_BOUNDS");
+        vm.expectRevert(LogExpMath.LEM_OutOfBounds.selector);
         LogCompression.toLowResLog(0);
     }
 }

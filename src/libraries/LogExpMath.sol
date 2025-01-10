@@ -86,6 +86,11 @@ library LogExpMath {
     int256 constant x11 = 6_250_000_000_000_000_000; // 2ˆ-4
     int256 constant a11 = 106_449_445_891_785_942_956; // eˆ(x11)
 
+    error LEM_InvalidExponent();
+    error LEM_OutOfBounds();
+    error LEM_YOutOfBounds();
+    error LEM_ProductOutOfBounds();
+
     /**
      * @dev Exponentiation (x^y) with unsigned 18 decimal fixed point base and exponent.
      *
@@ -107,7 +112,7 @@ library LogExpMath {
             // x^y = exp(y * ln(x)).
 
             // The ln function takes a signed value, so we need to make sure x fits in the signed 256 bit range.
-            require(x < 2 ** 255, "EM: X_OUT_OF_BOUNDS");
+            require(x < 2 ** 255, LEM_OutOfBounds());
             int256 x_int256 = int256(x);
 
             // We will compute y * ln(x) in a single step. Depending on the value of x, we can either use ln or ln_36. In
@@ -115,7 +120,7 @@ library LogExpMath {
 
             // This prevents y * ln(x) from overflowing, and at the same time guarantees y fits in the signed 256 bit
             // range.
-            require(y < MILD_EXPONENT_BOUND, "EM: Y_OUT_OF_BOUNDS");
+            require(y < MILD_EXPONENT_BOUND, LEM_YOutOfBounds());
             int256 y_int256 = int256(y);
 
             int256 logx_times_y;
@@ -136,7 +141,7 @@ library LogExpMath {
             // Finally, we compute exp(y * ln(x)) to arrive at x^y
             require(
                 MIN_NATURAL_EXPONENT <= logx_times_y && logx_times_y <= MAX_NATURAL_EXPONENT,
-                "EM: PRODUCT_OUT_OF_BOUNDS"
+                LEM_ProductOutOfBounds()
             );
 
             return uint256(exp(logx_times_y));
@@ -150,7 +155,7 @@ library LogExpMath {
      */
     function exp(int256 x) internal pure returns (int256) {
         unchecked {
-            require(x >= MIN_NATURAL_EXPONENT && x <= MAX_NATURAL_EXPONENT, "EM: INVALID_EXPONENT");
+            require(x >= MIN_NATURAL_EXPONENT && x <= MAX_NATURAL_EXPONENT, LEM_InvalidExponent());
             if (x < 0) {
                 // We only handle positive exponents: e^(-x) is computed as 1 / e^x. We can safely make x positive since
                 // it
@@ -330,7 +335,7 @@ library LogExpMath {
     function ln(int256 a) internal pure returns (int256) {
         unchecked {
             // The real natural logarithm is not defined for negative numbers or zero.
-            require(a > 0, "EM: OUT_OF_BOUNDS");
+            require(a > 0, LEM_OutOfBounds());
 
             if (LN_36_LOWER_BOUND < a && a < LN_36_UPPER_BOUND) {
                 return _ln_36(a) / ONE_18;

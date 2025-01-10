@@ -4,6 +4,9 @@ pragma solidity ^0.8.0;
 library ConstantProductMath {
     uint256 public constant FEE_ACCURACY = 1_000_000; // 100%
 
+    error CPM_InsufficientInputAmt();
+    error CPM_InsufficientLiquidity();
+
     /// @dev the function assumes that the following args are within the respective bounds as enforced by ReservoirPair
     /// and therefore should not overflow. If overflow happens the transaction will revert
     /// aAmountIn   <= uint104
@@ -15,8 +18,8 @@ library ConstantProductMath {
         pure
         returns (uint256 rAmountOut)
     {
-        require(aAmountIn > 0, "CP: INSUFFICIENT_INPUT_AMOUNT");
-        require(aReserveIn > 0 && aReserveOut > 0, "CP: INSUFFICIENT_LIQUIDITY");
+        require(aAmountIn > 0, CPM_InsufficientInputAmt());
+        require(aReserveIn > 0 && aReserveOut > 0, CPM_InsufficientLiquidity());
 
         uint256 lAmountInWithFee = aAmountIn * (FEE_ACCURACY - aSwapFee);
         uint256 lNumerator = lAmountInWithFee * aReserveOut;
@@ -35,8 +38,8 @@ library ConstantProductMath {
         pure
         returns (uint256 rAmountIn)
     {
-        require(aAmountOut > 0, "CP: INSUFFICIENT_OUTPUT_AMOUNT");
-        require(aReserveIn > 0 && aReserveOut > 0, "CP: INSUFFICIENT_LIQUIDITY");
+        require(aAmountOut > 0, CPM_InsufficientInputAmt());
+        require(aReserveIn > 0 && aReserveOut > 0, CPM_InsufficientLiquidity());
 
         uint256 lNumerator = aReserveIn * aAmountOut * FEE_ACCURACY;
         uint256 lDenominator = (aReserveOut - aAmountOut) * (FEE_ACCURACY - aSwapFee);
