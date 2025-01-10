@@ -29,7 +29,7 @@ jobs:
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: nightly
+          version: stable
       - run: npm run test:unit
 
   test-integration:
@@ -40,7 +40,7 @@ jobs:
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: nightly
+          version: stable
       - run: npm run test:integration
 
   test-e2e:
@@ -51,7 +51,7 @@ jobs:
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: nightly
+          version: stable
       - run: npm run test:e2e
 
   test-differential-balancer:
@@ -63,7 +63,7 @@ jobs:
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: nightly
+          version: stable
       - run: npm run install:balancer
       - run: npm run build:balancer
       - run: npm run test:balancer
@@ -78,7 +78,7 @@ jobs:
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: nightly
+          version: stable
       - run: forge snapshot --check
         env:
           FOUNDRY_PROFILE: default
@@ -92,7 +92,7 @@ jobs:
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: nightly
+          version: stable
       - run: ./script/coverage_patch_deployer.sh && forge coverage --report lcov
         env:
           FOUNDRY_PROFILE: coverage
@@ -116,7 +116,7 @@ jobs:
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: nightly
+          version: stable
       - run: ./script/coverage_patch_deployer.sh && forge coverage --report lcov
         env:
           FOUNDRY_PROFILE: coverage-integration
