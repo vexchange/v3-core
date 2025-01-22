@@ -254,6 +254,11 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(_manager.getBalance(_pair, IERC20(address(_tokenA))), 0);
     }
 
+    function testAdjustManagement_ZeroAmount() public allNetworks allPairs {
+        // act - should not revert even if amount is zero
+        _manager.adjustManagement(_pair, 0, 0);
+    }
+
     function testAdjustManagement_NotOwner() public allNetworks allPairs {
         // act & assert
         vm.prank(_alice);
