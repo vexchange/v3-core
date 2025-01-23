@@ -416,8 +416,10 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         if (address(assetManager) == address(0)) {
             return;
         }
-
-        assetManager.afterLiquidityEvent();
+        // Sometimes rebalancing can fail to due to reasons such as exceeding the supply cap, or if there's insufficient cash
+        // in the vault to fulfil the redemption. So it's necessary to catch the error to prevent an otherwise successful mint/burn from reverting.
+        // solhint-disable-next-line no-empty-blocks
+        try assetManager.afterLiquidityEvent() { } catch { }
     }
 
     function adjustManagement(int256 aToken0Change, int256 aToken1Change) external {

@@ -593,6 +593,42 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(_manager.getBalance(_pair, USDC), 0);
     }
 
+    function testAfterLiquidityEvent_ExceedMaxDeposit() external allNetworks allPairs {
+        // arrange
+        IERC4626 lVault = _manager.assetVault(USDC);
+        uint256 lMaxDeposit = lVault.maxDeposit(address(_manager));
+        uint256 lAmtToMint = lMaxDeposit * 4;
+
+        // act
+        _deal(address(USDC), address(this), lAmtToMint);
+        USDC.transfer(address(_pair), lAmtToMint);
+        _tokenA.mint(address(_pair), lAmtToMint);
+
+        // assert - mint should succeed even if it exceeds the max deposit
+        _pair.mint(address(this));
+        assertGt(_pair.balanceOf(address(this)), 0);
+        assertEq(_pair.token0Managed(), 0);
+        assertEq(_pair.token1Managed(), 0);
+    }
+
+    function testAfterLiquidityEvent_ExceedMaxWithdraw() external allNetworks allPairs {
+        // arrange
+        _increaseManagementOneToken(int256(4 * MINT_AMOUNT / 5)); // above the threshold
+        IERC4626 lVault = _manager.assetVault(USDC);
+        uint256 lLpTokenBal = _pair.balanceOf(_alice);
+        uint256 lAmtToBurn = lLpTokenBal / 100; // burn 1%
+        vm.prank(_alice);
+        _pair.transfer(address(_pair), lAmtToBurn);
+
+        // act - simulate a failure in withdrawing during `afterLiquidityEvent`
+        vm.mockCallRevert(address(lVault), bytes4(IERC4626.withdraw.selector), "");
+        _pair.burn(address(this));
+
+        // assert - tokens are still redeemed from the pair
+        assertGt(USDC.balanceOf(address(this)), 0);
+        assertGt(_tokenA.balanceOf(address(this)), 0);
+    }
+
     function testSwap_ReturnAsset() public allNetworks allPairs {
         // arrange
         (uint256 lReserve0, uint256 lReserve1,,) = _pair.getReserves();
