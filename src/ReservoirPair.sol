@@ -347,6 +347,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
 
     event Profit(IERC20 token, uint256 amount);
     event Loss(IERC20 token, uint256 amount);
+    event AfterLiquidityEventFailed(bytes revert);
 
     IAssetManager public assetManager;
 
@@ -419,7 +420,10 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         // Sometimes rebalancing can fail to due to reasons such as exceeding the supply cap, or if there's insufficient cash
         // in the vault to fulfil the redemption. So it's necessary to catch the error to prevent an otherwise successful mint/burn from reverting.
         // solhint-disable-next-line no-empty-blocks
-        try assetManager.afterLiquidityEvent() { } catch { }
+        try assetManager.afterLiquidityEvent() { }
+        catch (bytes memory lowLevelData) {
+            emit AfterLiquidityEventFailed(lowLevelData);
+        }
     }
 
     function adjustManagement(int256 aToken0Change, int256 aToken1Change) external {
@@ -524,7 +528,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
             aCurrRawPrice.percentDelta(aPrevClampedPrice) <= maxChangeRate * aTimeElapsed;
         bool lPerTradeWithinThreshold = aCurrRawPrice.percentDelta(aPrevClampedPrice) <= maxChangePerTrade;
         if (
-            lRateOfChangeWithinThreshold && lPerTradeWithinThreshold || aPreviousTimestamp == 0 // first ever calculation of the clamped price, and so should be set to the raw price
+            lRateOfChangeWithinThreshold && lPerTradeWithinThreshold || aPreviousTimestamp == 0 // first ever
+                // calculation of the clamped price, and so should be set to the raw price
         ) {
             (rClampedPrice, rClampedLogPrice) = (aCurrRawPrice, aCurrLogRawPrice);
         } else {

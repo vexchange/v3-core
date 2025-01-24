@@ -33,6 +33,7 @@ contract EulerIntegrationTest is BaseTest {
 
     event Guardian(address newGuardian);
     event Transfer(address from, address to, uint256 amount);
+    event AfterLiquidityEventFailed(bytes revert);
 
     error TransferFailed();
 
@@ -605,6 +606,8 @@ contract EulerIntegrationTest is BaseTest {
         _tokenA.mint(address(_pair), lAmtToMint);
 
         // assert - mint should succeed even if it exceeds the max deposit
+        vm.expectEmit(false, false, false, true);
+        emit AfterLiquidityEventFailed(abi.encodePacked(bytes4(keccak256("E_SupplyCapExceeded()"))));
         _pair.mint(address(this));
         assertGt(_pair.balanceOf(address(this)), 0);
         assertEq(_pair.token0Managed(), 0);
@@ -621,7 +624,9 @@ contract EulerIntegrationTest is BaseTest {
         _pair.transfer(address(_pair), lAmtToBurn);
 
         // act - simulate a failure in withdrawing during `afterLiquidityEvent`
-        vm.mockCallRevert(address(lVault), bytes4(IERC4626.withdraw.selector), "");
+        vm.mockCallRevert(address(lVault), bytes4(IERC4626.withdraw.selector), abi.encodePacked(bytes4(keccak256("E_InsufficientCash()"))));
+        vm.expectEmit(false, false, false, true);
+        emit AfterLiquidityEventFailed(abi.encodePacked(bytes4(keccak256("E_InsufficientCash()"))));
         _pair.burn(address(this));
 
         // assert - tokens are still redeemed from the pair
