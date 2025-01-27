@@ -17,7 +17,7 @@ contract OracleWriterTest is BaseTest {
     using FactoryStoreLib for GenericFactory;
     using FixedPointMathLib for uint256;
 
-    event ClampParamsUpdated(uint128 newMaxChangeRatePerSecond, uint128 newMaxChangePerTrade);
+    event ClampParams(uint128 newMaxChangeRatePerSecond, uint128 newMaxChangePerTrade);
 
     ReservoirPair[] internal _pairs;
     ReservoirPair internal _pair;
@@ -111,7 +111,7 @@ contract OracleWriterTest is BaseTest {
 
         vm.prank(address(_factory));
         vm.expectEmit(false, false, false, false);
-        emit ClampParamsUpdated(1, 1);
+        emit ClampParams(1, 1);
         _pair.setClampParams(1, 1);
         assertEq(_pair.maxChangeRate(), 1);
     }
@@ -478,8 +478,9 @@ contract OracleWriterTest is BaseTest {
 
     function testOracle_OverflowAccPrice(uint32 aNewStartTime) public randomizeStartTime(aNewStartTime) allPairs {
         // arrange - make the last observation close to overflowing
-        (,,, uint16 lIndex) = _pair.getReserves();
+        (uint104 lReserve0, uint104 lReserve1,, uint16 lIndex) = _pair.getReserves();
         _writeObservation(_pair, lIndex, 1e3, 1e3, type(int88).max, type(int88).max, uint32(block.timestamp % 2 ** 31));
+        _writeReserves(_pair, lReserve0, lReserve1, uint32(block.timestamp % 2 ** 31), lIndex);
         Observation memory lPrevObs = _pair.observation(lIndex);
 
         // act

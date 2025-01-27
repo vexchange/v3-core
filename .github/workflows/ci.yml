@@ -27,9 +27,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: foundry-rs/foundry-toolchain@v1.3.1
         with:
-          version: nightly
+          version: stable
       - run: npm run test:unit
 
   test-integration:
@@ -38,9 +38,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: foundry-rs/foundry-toolchain@v1.3.1
         with:
-          version: nightly
+          version: stable
       - run: npm run test:integration
 
   test-e2e:
@@ -49,9 +49,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: foundry-rs/foundry-toolchain@v1.3.1
         with:
-          version: nightly
+          version: stable
       - run: npm run test:e2e
 
   test-differential-balancer:
@@ -61,9 +61,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: foundry-rs/foundry-toolchain@v1.3.1
         with:
-          version: nightly
+          version: stable
       - run: npm run install:balancer
       - run: npm run build:balancer
       - run: npm run test:balancer
@@ -76,9 +76,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: foundry-rs/foundry-toolchain@v1.3.1
         with:
-          version: nightly
+          version: stable
       - run: forge snapshot --check
         env:
           FOUNDRY_PROFILE: default
@@ -90,9 +90,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: foundry-rs/foundry-toolchain@v1.3.1
         with:
-          version: nightly
+          version: stable
       - run: ./script/coverage_patch_deployer.sh && forge coverage --report lcov
         env:
           FOUNDRY_PROFILE: coverage
@@ -114,9 +114,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: foundry-rs/foundry-toolchain@v1.3.1
         with:
-          version: nightly
+          version: stable
       - run: ./script/coverage_patch_deployer.sh && forge coverage --report lcov
         env:
           FOUNDRY_PROFILE: coverage-integration

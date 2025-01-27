@@ -151,6 +151,32 @@ abstract contract BaseTest is Test {
         vm.store(address(aPair), lAccesses[0], lEncoded);
     }
 
+    function _writeReserves(
+        ReservoirPair aPair,
+        uint256 aReserve0,
+        uint256 aReserve1,
+        uint32 aBlocktimestampLast,
+        uint16 aIndex
+    ) internal {
+        bytes32 lEncoded = bytes32(
+            bytes.concat(
+                bytes2(aIndex),
+                bytes4(aBlocktimestampLast),
+                bytes13(uint104(aReserve1)),
+                bytes13(uint104(aReserve0))
+            )
+        );
+
+        vm.record();
+        aPair.getReserves();
+
+        (bytes32[] memory lAccesses,) = vm.accesses(address(aPair));
+        // solhint-disable-next-line no-console
+        if (lAccesses.length != 1) console2.log("warn: invalid number of accesses");
+
+        vm.store(address(aPair), lAccesses[0], lEncoded);
+    }
+
     function _skip(uint256 aTime) internal {
         vm.roll(vm.getBlockNumber() + 1);
         skip(aTime);

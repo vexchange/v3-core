@@ -33,6 +33,7 @@ contract EulerIntegrationTest is BaseTest {
 
     event Guardian(address newGuardian);
     event Transfer(address from, address to, uint256 amount);
+    event AfterLiquidityEventFailed(bytes revert);
 
     error TransferFailed();
 
@@ -191,10 +192,10 @@ contract EulerIntegrationTest is BaseTest {
         vm.stopPrank();
 
         vm.startPrank(_bob);
-        vm.expectRevert("AM: UNAUTHORIZED");
+        vm.expectRevert(EulerV2Manager.Unauthorized.selector);
         _manager.setWindDownMode(false);
 
-        vm.expectRevert("AM: UNAUTHORIZED");
+        vm.expectRevert(EulerV2Manager.Unauthorized.selector);
         _manager.setThresholds(30, 30);
         vm.stopPrank();
     }
@@ -234,20 +235,29 @@ contract EulerIntegrationTest is BaseTest {
         assertEq(_manager.windDownMode(), true);
     }
 
-    function testAdjustManagement_NoMarket(uint256 aAmountToManage) public allNetworks allPairs {
-        // assume - we want negative numbers too
-        int256 lAmountToManage = int256(bound(aAmountToManage, 0, type(uint256).max));
+    function testAdjustManagement_NoVaultForAsset(int256 aAmountToManage) public allNetworks allPairs {
+        // assume - we want any positive / negative numbers, just not zero
+        vm.assume(aAmountToManage != 0);
+
+        // arrange
+        IERC20 lToken0 = _pair.token0();
 
         // act
+        vm.expectRevert(EulerV2Manager.NoVaultForAsset.selector);
         _manager.adjustManagement(
             _pair,
-            _pair.token0() == USDC ? int256(0) : lAmountToManage,
-            _pair.token1() == USDC ? int256(0) : lAmountToManage
+            lToken0 == USDC ? int256(0) : aAmountToManage,
+            lToken0 == USDC ? aAmountToManage : int256(0)
         );
 
         // assert
         assertEq(_manager.getBalance(_pair, USDC), 0);
         assertEq(_manager.getBalance(_pair, IERC20(address(_tokenA))), 0);
+    }
+
+    function testAdjustManagement_ZeroAmount() public allNetworks allPairs {
+        // act - should not revert even if amount is zero
+        _manager.adjustManagement(_pair, 0, 0);
     }
 
     function testAdjustManagement_NotOwner() public allNetworks allPairs {
@@ -339,20 +349,20 @@ contract EulerIntegrationTest is BaseTest {
 
         _manager.setWindDownMode(true);
         int256 lIncreaseAmt = 50e6;
+        IERC20 lToken0 = _pair.token0();
+        IERC20 lOtherPairToken0 = lOtherPair.token0();
 
-        // act
+        // act & assert - manual adjustments to increase management should fail
+        vm.expectRevert(EulerV2Manager.InvestmentAttemptDuringWindDown.selector);
         _manager.adjustManagement(
-            _pair, _pair.token0() == USDC ? lIncreaseAmt : int256(0), _pair.token1() == USDC ? lIncreaseAmt : int256(0)
+            _pair, lToken0 == USDC ? lIncreaseAmt : int256(0), lToken0 == USDC ?  int256(0) : lIncreaseAmt
         );
+        vm.expectRevert(EulerV2Manager.InvestmentAttemptDuringWindDown.selector);
         _manager.adjustManagement(
             lOtherPair,
-            lOtherPair.token0() == USDC ? lIncreaseAmt : int256(0),
-            lOtherPair.token1() == USDC ? lIncreaseAmt : int256(0)
+            lOtherPairToken0 == USDC ? lIncreaseAmt : int256(0),
+            lOtherPairToken0 == USDC ? int256(0) : lIncreaseAmt
         );
-
-        // assert
-        assertApproxEqAbs(_manager.getBalance(_pair, USDC), 300e6, 1);
-        assertEq(_manager.getBalance(lOtherPair, USDC), 0);
     }
 
     function testGetBalance(uint256 aAmountToManage) public allNetworks allPairs {
@@ -561,17 +571,18 @@ contract EulerIntegrationTest is BaseTest {
         _pair.burn(address(this));
         assertGt(_pair.token0() == USDC ? _pair.token0Managed() : _pair.token1Managed(), 0);
         uint256 lAmtManaged = _manager.getBalance(_pair, USDC);
+        IERC20 lToken0 = _pair.token0();
 
         // act
         _manager.setWindDownMode(true);
 
         // assert - burn should still succeed
         _pair.burn(address(this));
-        // this call to increase management should have no effect
+        vm.expectRevert(EulerV2Manager.InvestmentAttemptDuringWindDown.selector);
         _manager.adjustManagement(
             _pair,
-            _pair.token0() == USDC ? int256(100e6) : int256(0),
-            _pair.token1() == USDC ? int256(100e6) : int256(0)
+            lToken0 == USDC ? int256(100e6) : int256(0),
+            lToken0 == USDC ? int256(0) : int256(100e6)
         );
         assertEq(_manager.getBalance(_pair, USDC), lAmtManaged);
         // a call to decrease management should have an effect
@@ -581,6 +592,46 @@ contract EulerIntegrationTest is BaseTest {
             _pair.token1() == USDC ? -int256(lAmtManaged) : int256(0)
         );
         assertEq(_manager.getBalance(_pair, USDC), 0);
+    }
+
+    function testAfterLiquidityEvent_ExceedMaxDeposit() external allNetworks allPairs {
+        // arrange
+        IERC4626 lVault = _manager.assetVault(USDC);
+        uint256 lMaxDeposit = lVault.maxDeposit(address(_manager));
+        uint256 lAmtToMint = lMaxDeposit * 4;
+
+        // act
+        _deal(address(USDC), address(this), lAmtToMint);
+        USDC.transfer(address(_pair), lAmtToMint);
+        _tokenA.mint(address(_pair), lAmtToMint);
+
+        // assert - mint should succeed even if it exceeds the max deposit
+        vm.expectEmit(false, false, false, true);
+        emit AfterLiquidityEventFailed(abi.encodePacked(bytes4(keccak256("E_SupplyCapExceeded()"))));
+        _pair.mint(address(this));
+        assertGt(_pair.balanceOf(address(this)), 0);
+        assertEq(_pair.token0Managed(), 0);
+        assertEq(_pair.token1Managed(), 0);
+    }
+
+    function testAfterLiquidityEvent_ExceedMaxWithdraw() external allNetworks allPairs {
+        // arrange
+        _increaseManagementOneToken(int256(4 * MINT_AMOUNT / 5)); // above the threshold
+        IERC4626 lVault = _manager.assetVault(USDC);
+        uint256 lLpTokenBal = _pair.balanceOf(_alice);
+        uint256 lAmtToBurn = lLpTokenBal / 100; // burn 1%
+        vm.prank(_alice);
+        _pair.transfer(address(_pair), lAmtToBurn);
+
+        // act - simulate a failure in withdrawing during `afterLiquidityEvent`
+        vm.mockCallRevert(address(lVault), bytes4(IERC4626.withdraw.selector), abi.encodePacked(bytes4(keccak256("E_InsufficientCash()"))));
+        vm.expectEmit(false, false, false, true);
+        emit AfterLiquidityEventFailed(abi.encodePacked(bytes4(keccak256("E_InsufficientCash()"))));
+        _pair.burn(address(this));
+
+        // assert - tokens are still redeemed from the pair
+        assertGt(USDC.balanceOf(address(this)), 0);
+        assertGt(_tokenA.balanceOf(address(this)), 0);
     }
 
     function testSwap_ReturnAsset() public allNetworks allPairs {
@@ -603,7 +654,10 @@ contract EulerIntegrationTest is BaseTest {
         (int256 lExpectedToken0Calldata, int256 lExpectedToken1Calldata) =
             _pair.token0() == USDC ? (int256(-10), int256(0)) : (int256(0), int256(-10));
         _tokenA.mint(address(_pair), lReserveTokenA * 2);
-        vm.expectCall(address(_manager), abi.encodeCall(_manager.returnAsset, (_pair.token0() == USDC, 10)));
+        vm.expectCall(
+            address(_manager),
+            abi.encodeCall(_manager.returnAsset, (_pair.token0() == USDC ? 10 : 0, _pair.token1() == USDC ? 10 : 0))
+        );
         vm.expectCall(
             address(_pair), abi.encodeCall(_pair.adjustManagement, (lExpectedToken0Calldata, lExpectedToken1Calldata))
         );
@@ -636,7 +690,10 @@ contract EulerIntegrationTest is BaseTest {
         (int256 lExpectedToken0Calldata, int256 lExpectedToken1Calldata) =
             _pair.token0() == USDC ? (int256(-10), int256(0)) : (int256(0), int256(-10));
         _tokenA.mint(address(_pair), lReserveTokenA * 2);
-        vm.expectCall(address(_manager), abi.encodeCall(_manager.returnAsset, (_pair.token0() == USDC, 10)));
+        vm.expectCall(
+            address(_manager),
+            abi.encodeCall(_manager.returnAsset, (_pair.token0() == USDC ? 10 : 0, _pair.token1() == USDC ? 10 : 0))
+        );
         vm.expectCall(
             address(_pair), abi.encodeCall(_pair.adjustManagement, (lExpectedToken0Calldata, lExpectedToken1Calldata))
         );
@@ -709,7 +766,7 @@ contract EulerIntegrationTest is BaseTest {
 
     function testSetThresholds_BreachMaximum() public allNetworks {
         // act & assert
-        vm.expectRevert("AM: INVALID_THRESHOLDS");
+        vm.expectRevert(EulerV2Manager.InvalidThresholds.selector);
         _manager.setThresholds(0, 1e18 + 1);
     }
 
@@ -719,7 +776,7 @@ contract EulerIntegrationTest is BaseTest {
         uint256 lThreshold = bound(aThreshold, 0, lLowerThreshold - 1);
 
         // act & assert
-        vm.expectRevert("AM: INVALID_THRESHOLDS");
+        vm.expectRevert(EulerV2Manager.InvalidThresholds.selector);
         _manager.setThresholds(lLowerThreshold, uint128(lThreshold));
     }
 
@@ -729,7 +786,7 @@ contract EulerIntegrationTest is BaseTest {
         uint256 lThreshold = bound(aThreshold, lUpperThreshold + 1, type(uint128).max);
 
         // act & assert
-        vm.expectRevert("AM: INVALID_THRESHOLDS");
+        vm.expectRevert(EulerV2Manager.InvalidThresholds.selector);
         _manager.setThresholds(uint128(lThreshold), lUpperThreshold);
     }
 
@@ -981,7 +1038,9 @@ contract EulerIntegrationTest is BaseTest {
 
         // act - adjustManagement should still succeed despite extra tokens
         int256 lAmtToManage = 2e6;
-        _manager.adjustManagement(_pair, USDC == _pair.token0() ? lAmtToManage : int256(0), USDC == _pair.token1() ? lAmtToManage : int256(0));
+        _manager.adjustManagement(
+            _pair, USDC == _pair.token0() ? lAmtToManage : int256(0), USDC == _pair.token1() ? lAmtToManage : int256(0)
+        );
 
         // assert
         assertGt(USDC.balanceOf(address(_manager)), 0);
@@ -992,12 +1051,16 @@ contract EulerIntegrationTest is BaseTest {
         // arrange
         int256 lAmtToManage = 2e6;
         _increaseManagementOneToken(lAmtToManage);
-        uint256 lUnexpectedTokens = 33222;
+        uint256 lUnexpectedTokens = 33_222;
         _deal(address(USDC), address(_manager), lUnexpectedTokens);
 
         // act
         uint256 lBalance = _manager.getBalance(_pair, USDC);
-        _manager.adjustManagement(_pair, _pair.token0() == USDC ? -int256(lBalance) : int256(0), _pair.token1() == USDC ? -int256(lBalance) : int256(0));
+        _manager.adjustManagement(
+            _pair,
+            _pair.token0() == USDC ? -int256(lBalance) : int256(0),
+            _pair.token1() == USDC ? -int256(lBalance) : int256(0)
+        );
 
         // assert
         assertEq(_manager.getBalance(_pair, USDC), 0);

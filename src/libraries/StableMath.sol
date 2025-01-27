@@ -26,6 +26,9 @@ library StableMath {
     /// @dev Maximum fee, which is 100%.
     uint256 private constant ONE_HUNDRED_PERCENT = 1_000_000;
 
+    error SM_COMPUTE_DID_NOT_CONVERGE();
+    error SM_GETY_DID_NOT_CONVERGE();
+
     /// @notice Calculates the amount of output tokens for an exact in trade
     /// @param amountIn input amount, assumed to be type(uint104).max or less
     /// @param reserve0 reserves of token0, assumed to be type(uint104).max or less
@@ -127,7 +130,7 @@ library StableMath {
         uint256 D = s;
         (xp0, xp1) = xp0 < xp1 ? (xp0, xp1) : (xp1, xp0);
         for (uint256 i = 0; i < MAX_LOOP_LIMIT; i++) {
-            uint256 dP = ((D * D) / xp0).fullMulDiv(D, xp1) / 4;
+            uint256 dP = ((D * D) / xp0).fullMulDiv(D, xp1) >> 2;
             prevD = D;
             D = ((N_A * s) / A_PRECISION + 2 * dP).fullMulDiv(D, (N_A - A_PRECISION) * D / A_PRECISION + 3 * dP);
             if (D.within1(prevD)) {
@@ -135,7 +138,7 @@ library StableMath {
             }
         }
 
-        revert("SM: COMPUTE_DID_NOT_CONVERGE");
+        revert SM_COMPUTE_DID_NOT_CONVERGE();
     }
 
     /// @notice Calculate the new balance of one token given the balance of the other token
@@ -163,6 +166,6 @@ library StableMath {
                 return y;
             }
         }
-        revert("SM: GETY_DID_NOT_CONVERGE");
+        revert SM_GETY_DID_NOT_CONVERGE();
     }
 }

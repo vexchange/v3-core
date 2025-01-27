@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import { FixedPointMathLib } from "solady/utils/FixedPointMathLib.sol";
+import { SafeCastLib } from "solady/utils/SafeCastLib.sol";
 
 import { IReservoirCallee } from "src/interfaces/IReservoirCallee.sol";
 import { IGenericFactory } from "src/interfaces/IGenericFactory.sol";
@@ -17,6 +18,7 @@ contract StablePair is ReservoirPair {
     using FactoryStoreLib for IGenericFactory;
     using Bytes32Lib for bytes32;
     using FixedPointMathLib for uint256;
+    using SafeCastLib for uint256;
 
     string private constant PAIR_SWAP_FEE_NAME = "SP::swapFee";
     string private constant AMPLIFICATION_COEFFICIENT_NAME = "SP::amplificationCoefficient";
@@ -39,21 +41,23 @@ contract StablePair is ReservoirPair {
     uint64 public lastInvariantAmp;
 
     constructor(IERC20 aToken0, IERC20 aToken1) ReservoirPair(aToken0, aToken1, PAIR_SWAP_FEE_NAME) {
-        ampData.initialA = factory.read(AMPLIFICATION_COEFFICIENT_NAME).toUint64() * uint64(StableMath.A_PRECISION);
+        uint64 lImpreciseA = factory.read(AMPLIFICATION_COEFFICIENT_NAME).toUint64();
+        unchecked {
+            // StableMath.MIN_A <= lImpreciseA <= StableMath.MAX_A
+            require(lImpreciseA - StableMath.MIN_A <= StableMath.MAX_A - StableMath.MIN_A, InvalidA());
+        }
+
+        ampData.initialA = lImpreciseA * uint64(StableMath.A_PRECISION);
         ampData.futureA = ampData.initialA;
         ampData.initialATime = uint64(block.timestamp);
         ampData.futureATime = uint64(block.timestamp);
-
-        require(
-            ampData.initialA >= StableMath.MIN_A * uint64(StableMath.A_PRECISION)
-                && ampData.initialA <= StableMath.MAX_A * uint64(StableMath.A_PRECISION),
-            InvalidA()
-        );
     }
 
     function rampA(uint64 aFutureARaw, uint64 aFutureATime) external onlyFactory {
-        require(aFutureARaw >= StableMath.MIN_A && aFutureARaw <= StableMath.MAX_A, InvalidA());
-
+        unchecked {
+            // StableMath.MIN_A <= aFutureRaw <= StableMath.MAX_A
+            require(aFutureARaw - StableMath.MIN_A <= StableMath.MAX_A - StableMath.MIN_A, InvalidA());
+        }
         uint64 lFutureAPrecise = aFutureARaw * uint64(StableMath.A_PRECISION);
 
         uint256 duration = aFutureATime - block.timestamp;
@@ -102,8 +106,8 @@ contract StablePair is ReservoirPair {
         uint256 lAmount1 = lBalance1 - lReserve1;
 
         (uint256 lFee0, uint256 lFee1) = _nonOptimalMintFee(lAmount0, lAmount1, lReserve0, lReserve1);
-        lReserve0 += uint104(lFee0);
-        lReserve1 += uint104(lFee1);
+        lReserve0 += lFee0;
+        lReserve1 += lFee1;
 
         (uint256 lTotalSupply, uint256 lOldLiq) = _mintFee(lReserve0, lReserve1);
 
@@ -116,7 +120,6 @@ contract StablePair is ReservoirPair {
             // only happen if:
             // 1. both tokens have 0 decimals (1e18 is 60 bits) and the amounts are each around 68 bits
             // 2. both tokens have 6 decimals (1e12 is 40 bits) and the amounts are each around 88 bits
-            // in which case the mint will fail anyway because it would have reverted at _computeLiquidity
             rLiquidity = (lNewLiq - lOldLiq) * lTotalSupply / lOldLiq;
         }
         require(rLiquidity != 0, InsufficientLiqMinted());
@@ -126,7 +129,7 @@ contract StablePair is ReservoirPair {
         // with 0 decimal places).
         // Which results in 112 + 60 + 1 = 173 bits.
         // Which fits into uint192.
-        lastInvariant = uint192(lNewLiq);
+        lastInvariant = lNewLiq.toUint192();
         lastInvariantAmp = _getCurrentAPrecise();
 
         emit Mint(msg.sender, lAmount0, lAmount1);
@@ -195,7 +198,7 @@ contract StablePair is ReservoirPair {
         uint256 amount1Optimal = aAmount0 * aReserve1 / aReserve0;
 
         if (amount1Optimal <= aAmount1) {
-            rToken1Fee = (swapFee * (aAmount1 - amount1Optimal)) / (2 * FEE_ACCURACY);
+            rToken1Fee = swapFee * (aAmount1 - amount1Optimal) / (2 * FEE_ACCURACY);
         } else {
             uint256 amount0Optimal = aAmount1 * aReserve0 / aReserve1;
             rToken0Fee = swapFee * (aAmount0 - amount0Optimal) / (2 * FEE_ACCURACY);
@@ -239,8 +242,8 @@ contract StablePair is ReservoirPair {
         nonReentrant
         returns (uint256 rAmountOut)
     {
-        (uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast, uint16 lIndex) = getReserves();
         require(aAmount != 0, AmountZero());
+        (uint256 lReserve0, uint256 lReserve1, uint32 lBlockTimestampLast, uint16 lIndex) = getReserves();
         uint256 lAmountIn;
         IERC20 lTokenOut;
 
@@ -295,7 +298,7 @@ contract StablePair is ReservoirPair {
         uint256 lReceived = lTokenOut == token0 ? lBalance1 - lReserve1 : lBalance0 - lReserve0;
         require(lReceived >= lAmountIn, InsufficientAmtIn());
 
-        _update(lBalance0, lBalance1, uint104(lReserve0), uint104(lReserve1), lBlockTimestampLast, lIndex);
+        _update(lBalance0, lBalance1, lReserve0, lReserve1, lBlockTimestampLast, lIndex);
         emit Swap(msg.sender, lTokenOut == token1, lReceived, rAmountOut, aTo);
     }
 
@@ -390,7 +393,7 @@ contract StablePair is ReservoirPair {
         internal
         view
         override
-        returns (uint256, int256)
+        returns (uint256 spotPrice, int256 logSpotPrice)
     {
         return StableOracleMath.calcLogPrice(
             _getCurrentAPrecise(), aBalance0 * token0PrecisionMultiplier, aBalance1 * token1PrecisionMultiplier

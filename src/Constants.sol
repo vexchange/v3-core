@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 library Constants {
+    uint256 public constant WAD = 1e18;
     uint256 public constant INITIAL_MINT_AMOUNT = 100e18;
     uint256 public constant DEFAULT_SWAP_FEE_CP = 3000; // 0.3%
     uint256 public constant DEFAULT_SWAP_FEE_SP = 100; // 0.01%

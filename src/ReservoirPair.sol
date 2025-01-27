@@ -38,6 +38,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     // Multipliers for each pooled token's precision to get to POOL_PRECISION_DECIMALS. For example,
     // TBTC has 18 decimals, so the multiplier should be 1. WBTC has 8, so the multiplier should be
     // 10 ** 18 / 10 ** 8 => 10 ** 10.
+    // Only supports tokens with decimals <= 18.
     uint128 public immutable token0PrecisionMultiplier;
     uint128 public immutable token1PrecisionMultiplier;
 
@@ -69,8 +70,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         token0 = aToken0;
         token1 = aToken1;
 
-        token0PrecisionMultiplier = uint128(10) ** (18 - aToken0.decimals()) ;
-        token1PrecisionMultiplier = uint128(10) ** (18 - aToken1.decimals()) ;
+        token0PrecisionMultiplier = uint128(10) ** (18 - aToken0.decimals());
+        token1PrecisionMultiplier = uint128(10) ** (18 - aToken1.decimals());
         swapFeeName = keccak256(bytes(aSwapFeeName));
 
         updateSwapFee();
@@ -105,8 +106,10 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         uint32 aBlockTimestampLast,
         uint16 aIndex
     ) internal {
-        require(aBalance0 <= type(uint104).max && aBalance1 <= type(uint104).max, Overflow());
-        require(aReserve0 <= type(uint104).max && aReserve1 <= type(uint104).max, Overflow());
+        require(aBalance0 <= type(uint104).max, Overflow());
+        require(aBalance1 <= type(uint104).max, Overflow());
+        require(aReserve0 <= type(uint104).max, Overflow());
+        require(aReserve1 <= type(uint104).max, Overflow());
 
         uint32 lBlockTimestamp = uint32(block.timestamp); // invalid after year 2106
         uint32 lTimeElapsed;
@@ -292,7 +295,10 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
             uint256 lReserveOut = lIsToken0 ? aReserve0 : aReserve1;
 
             if (lReserveOut - lTokenOutManaged < aAmount) {
-                assetManager.returnAsset(lIsToken0, aAmount - (lReserveOut - lTokenOutManaged));
+                assetManager.returnAsset(
+                    lIsToken0 ? aAmount - (lReserveOut - lTokenOutManaged) : 0,
+                    lIsToken0 ? 0 : aAmount - (lReserveOut - lTokenOutManaged)
+                );
                 require(_safeTransfer(aToken, aDestination, aAmount), TransferFailed());
             } else {
                 revert TransferFailed();
@@ -341,6 +347,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
 
     event Profit(IERC20 token, uint256 amount);
     event Loss(IERC20 token, uint256 amount);
+    event AfterLiquidityEventFailed(bytes revert);
 
     IAssetManager public assetManager;
 
@@ -410,8 +417,13 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         if (address(assetManager) == address(0)) {
             return;
         }
-
-        assetManager.afterLiquidityEvent();
+        // Sometimes rebalancing can fail to due to reasons such as exceeding the supply cap, or if there's insufficient cash
+        // in the vault to fulfil the redemption. So it's necessary to catch the error to prevent an otherwise successful mint/burn from reverting.
+        // solhint-disable-next-line no-empty-blocks
+        try assetManager.afterLiquidityEvent() { }
+        catch (bytes memory lowLevelData) {
+            emit AfterLiquidityEventFailed(lowLevelData);
+        }
     }
 
     function adjustManagement(int256 aToken0Change, int256 aToken1Change) external {
@@ -458,7 +470,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
 
             rAmtSkimmed = lTokenAmtManaged - type(uint104).max;
 
-            assetManager.returnAsset(aToken == token0, rAmtSkimmed);
+            assetManager.returnAsset(aToken == token0 ? rAmtSkimmed : 0, aToken == token1 ? rAmtSkimmed : 0);
             address(aToken).safeTransfer(lRecoverer, rAmtSkimmed);
         }
     }
@@ -473,7 +485,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
 
     //////////////////////////////////////////////////////////////////////////*/
 
-    event ClampParamsUpdated(uint128 newMaxChangeRatePerSecond, uint128 newMaxChangePerTrade);
+    event ClampParams(uint128 newMaxChangeRatePerSecond, uint128 newMaxChangePerTrade);
 
     // 1% per second which is 60% per minute
     uint256 internal constant MAX_CHANGE_PER_SEC = 0.01e18;
@@ -498,7 +510,7 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
         require(0 < aMaxChangeRate && aMaxChangeRate <= MAX_CHANGE_PER_SEC, InvalidChangePerSecond());
         require(0 < aMaxChangePerTrade && aMaxChangePerTrade <= MAX_CHANGE_PER_TRADE, InvalidChangePerTrade());
 
-        emit ClampParamsUpdated(aMaxChangeRate, aMaxChangePerTrade);
+        emit ClampParams(aMaxChangeRate, aMaxChangePerTrade);
         maxChangeRate = aMaxChangeRate;
         maxChangePerTrade = aMaxChangePerTrade;
     }
@@ -516,7 +528,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
             aCurrRawPrice.percentDelta(aPrevClampedPrice) <= maxChangeRate * aTimeElapsed;
         bool lPerTradeWithinThreshold = aCurrRawPrice.percentDelta(aPrevClampedPrice) <= maxChangePerTrade;
         if (
-            (lRateOfChangeWithinThreshold && lPerTradeWithinThreshold) || aPreviousTimestamp == 0 // first ever calculation of the clamped price, and so should be set to the raw price
+            lRateOfChangeWithinThreshold && lPerTradeWithinThreshold || aPreviousTimestamp == 0 // first ever
+                // calculation of the clamped price, and so should be set to the raw price
         ) {
             (rClampedPrice, rClampedLogPrice) = (aCurrRawPrice, aCurrLogRawPrice);
         } else {
