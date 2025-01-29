@@ -90,6 +90,6 @@ contract StableOracleMathTest is Test {
         uint256 lReserve1 = bound(aReserve1, 1, 1e12);
 
         // act - this should never revert for all non-zero values of reserve0 and reserve1
-        (uint256 lSpotPrice, ) = StableOracleMath.calcLogPrice(100000, lReserve0, lReserve1);
+        StableOracleMath.calcLogPrice(100000, lReserve0, lReserve1);
     }
 }
