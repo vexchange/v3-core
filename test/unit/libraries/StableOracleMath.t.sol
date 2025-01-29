@@ -83,4 +83,13 @@ contract StableOracleMathTest is Test {
         // assert
         assertApproxEqRel(lSpotEstimated, lSpotCalculated, 0.000001e18); // 1% of 1bp, or a 0.0001% error
     }
+
+    function testCalcLogPrice_VerySmallAmounts(uint256 aReserve0, uint256 aReserve1) external {
+        // assume
+        uint256 lReserve0 = bound(aReserve0, 1, 1e12);
+        uint256 lReserve1 = bound(aReserve1, 1, 1e12);
+
+        // act - this should never revert for all non-zero values of reserve0 and reserve1
+        (uint256 lSpotPrice, ) = StableOracleMath.calcLogPrice(100000, lReserve0, lReserve1);
+    }
 }
