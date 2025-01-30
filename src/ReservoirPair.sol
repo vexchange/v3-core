@@ -96,8 +96,8 @@ abstract contract ReservoirPair is IAssetManagedPair, ReservoirERC20, RGT {
     /// @notice Updates reserves with new balances.
     /// @notice On the first call per block, accumulate price oracle using previous instant prices and write the new
     /// instant prices.
-    /// @dev The price is not updated on subsequent swaps as manipulating
-    /// the instantaneous price does not materially affect the TWAP, especially when using clamped pricing.
+    /// @dev The instantaneous price is updated on subsequent swaps to prevent attackers from only having to manipulate
+    /// the first trade in the block to successfully affect the TWAP.
     function _update(
         uint256 aBalance0,
         uint256 aBalance1,

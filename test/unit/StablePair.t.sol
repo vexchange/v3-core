@@ -86,6 +86,23 @@ contract StablePairTest is BaseTest {
         assertEq(_stablePair.balanceOf(address(this)), lAdditionalLpTokens);
     }
 
+    function testMint_VerySmallAmounts(uint256 aTokenAAmt, uint256 aTokenCAmt) external {
+        // assume
+        uint256 lTokenAAmt = bound(aTokenAAmt, 1e3, 1e9);
+        uint256 lTokenCAmt = bound(aTokenCAmt, 1e3, 1e9);
+
+        // arrange
+        StablePair lPair = StablePair(_createPair(address(_tokenA), address(_tokenC), 1));
+        _tokenA.mint(address(lPair), lTokenAAmt);
+        _tokenC.mint(address(lPair), lTokenCAmt);
+
+        // act
+        lPair.mint(address(this));
+
+        // assert
+        assertGt(lPair.balanceOf(address(this)), 0);
+    }
+
     function testMint_Reenter() external {
         // arrange
         vm.prank(address(_factory));

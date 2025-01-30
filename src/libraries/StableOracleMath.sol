@@ -56,19 +56,13 @@ library StableOracleMath {
 
         uint256 by = b.mulWad(reserve1);
         uint256 ay2 = (a * reserve1).mulWad(reserve1);
-        if (by > axy2 + ay2) return 1e18;
         // dx = a.x.y.2 + a.y^2 - b.y
-        uint256 derivativeX = axy2 + ay2 - by;
+        uint256 derivativeX = by < axy2 + ay2 ? axy2 + ay2 - by : 1;
 
-        // dy = a.x.y.2 + a.x^2 - b.x
         uint256 bx = (b.mulWad(reserve0));
         uint256 ax2 = (a * reserve0).mulWad(reserve0);
-        if (bx > axy2 + ax2) return 1e18;
-        uint256 derivativeY = axy2 + ax2 - bx;
-
-        // This is to prevent division by 0 which happens if reserve0 and reserve1 are sufficiently small (~1e6 after normalization) which can brick the pair
-        // If the reserves are that small, their prices will not be serving as price oracles, thus this is safe.
-        if (derivativeY == 0) return 1e18;
+        // dy = a.x.y.2 + a.x^2 - b.x
+        uint256 derivativeY = bx < axy2 + ax2 ? axy2 + ax2 - bx : 1;
 
         // The rounding direction is irrelevant as we're about to introduce a much larger error when converting to log
         // space. We use `divWadUp` as it prevents the result from being zero, which would make the logarithm revert. A
