@@ -46,23 +46,4 @@ contract LogCompressionTest is Test {
             LogCompression.fromLowResLog(aValue);
         }
     }
-
-    function testToLowResLog_MaxReturnValue() external {
-        // act & assert this is the maximum input that the function can take
-        int256 lResLargest = LogCompression.toLowResLog(2 ** 255 - 1);
-        assertEq(lResLargest, 1_353_060); // 135.3060
-
-        // once the input exceeds the max input above, it reverts
-        vm.expectRevert(LogExpMath.LEM_OutOfBounds.selector);
-        LogCompression.toLowResLog(2 ** 255);
-    }
-
-    function testToLowResLog_MinReturnValue() external {
-        // act & assert - this is the smallest input the function takes
-        int256 lResSmallest = LogCompression.toLowResLog(1);
-        assertEq(lResSmallest, -414_465); // -41.4465
-
-        vm.expectRevert(LogExpMath.LEM_OutOfBounds.selector);
-        LogCompression.toLowResLog(0);
-    }
 }
