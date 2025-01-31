@@ -47,7 +47,7 @@ library LogCompression {
 
             // Clamp output to ensure that price could be de-compressed using `fromLowResLog` without reverting
             if (lnWithError < LogExpMath.MIN_NATURAL_EXPONENT) lnWithError = LogExpMath.MIN_NATURAL_EXPONENT;
-            if (lnWithError > LogExpMath.MAX_NATURAL_EXPONENT) lnWithError = LogExpMath.MAX_NATURAL_EXPONENT;
+            else if (lnWithError > LogExpMath.MAX_NATURAL_EXPONENT) lnWithError = LogExpMath.MAX_NATURAL_EXPONENT;
 
             return lnWithError / _LOG_COMPRESSION_FACTOR;
         }
