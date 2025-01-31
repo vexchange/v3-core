@@ -24,7 +24,14 @@ contract LogCompressionTest is Test {
         if (lSuccess) {
             int256 lLocalRes = LogCompression.toLowResLog(aValue);
             int256 lDecoded = abi.decode(lRes, (int256));
-            assertEq(lLocalRes, lDecoded);
+
+            if (lDecoded > LogExpMath.MAX_NATURAL_EXPONENT / 1e14) {
+                assertEq(lLocalRes, LogExpMath.MAX_NATURAL_EXPONENT / 1e14);
+            } else if (lDecoded < LogExpMath.MIN_NATURAL_EXPONENT / 1e14) {
+                assertEq(lLocalRes, LogExpMath.MIN_NATURAL_EXPONENT / 1e14);
+            } else {
+                assertEq(lLocalRes, lDecoded);
+            }
         } else {
             vm.expectRevert();
             LogCompression.toLowResLog(aValue);
@@ -45,24 +52,5 @@ contract LogCompressionTest is Test {
             vm.expectRevert();
             LogCompression.fromLowResLog(aValue);
         }
-    }
-
-    function testToLowResLog_MaxReturnValue() external {
-        // act & assert this is the maximum input that the function can take
-        int256 lResLargest = LogCompression.toLowResLog(2 ** 255 - 1);
-        assertEq(lResLargest, 1_353_060); // 135.3060
-
-        // once the input exceeds the max input above, it reverts
-        vm.expectRevert(LogExpMath.LEM_OutOfBounds.selector);
-        LogCompression.toLowResLog(2 ** 255);
-    }
-
-    function testToLowResLog_MinReturnValue() external {
-        // act & assert - this is the smallest input the function takes
-        int256 lResSmallest = LogCompression.toLowResLog(1);
-        assertEq(lResSmallest, -414_465); // -41.4465
-
-        vm.expectRevert(LogExpMath.LEM_OutOfBounds.selector);
-        LogCompression.toLowResLog(0);
     }
 }

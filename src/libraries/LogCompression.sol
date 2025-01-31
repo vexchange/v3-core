@@ -44,6 +44,11 @@ library LogCompression {
 
             // Rounding division for signed numerator
             int256 lnWithError = (ln > 0 ? ln + _HALF_LOG_COMPRESSION_FACTOR : ln - _HALF_LOG_COMPRESSION_FACTOR);
+
+            // Clamp output to ensure that price could be de-compressed using `fromLowResLog` without reverting
+            if (lnWithError < LogExpMath.MIN_NATURAL_EXPONENT) lnWithError = LogExpMath.MIN_NATURAL_EXPONENT;
+            else if (lnWithError > LogExpMath.MAX_NATURAL_EXPONENT) lnWithError = LogExpMath.MAX_NATURAL_EXPONENT;
+
             return lnWithError / _LOG_COMPRESSION_FACTOR;
         }
     }
