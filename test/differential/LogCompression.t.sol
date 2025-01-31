@@ -24,7 +24,14 @@ contract LogCompressionTest is Test {
         if (lSuccess) {
             int256 lLocalRes = LogCompression.toLowResLog(aValue);
             int256 lDecoded = abi.decode(lRes, (int256));
-            assertEq(lLocalRes, lDecoded);
+
+            if (lDecoded > LogExpMath.MAX_NATURAL_EXPONENT / 1e14) {
+                assertEq(lLocalRes, LogExpMath.MAX_NATURAL_EXPONENT / 1e14);
+            } else if (lDecoded < LogExpMath.MIN_NATURAL_EXPONENT / 1e14) {
+                assertEq(lLocalRes, LogExpMath.MIN_NATURAL_EXPONENT / 1e14);
+            } else {
+                assertEq(lLocalRes, lDecoded);
+            }
         } else {
             vm.expectRevert();
             LogCompression.toLowResLog(aValue);
