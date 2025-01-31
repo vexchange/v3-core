@@ -15,7 +15,7 @@
 pragma solidity ^0.8.0;
 
 import { LogExpMath } from "src/libraries/LogExpMath.sol";
-
+import { console } from "forge-std/console.sol";
 /**
  * @dev Library for encoding and decoding values stored inside a 256 bit word. Typically used to pack multiple values in
  * a single storage slot, saving gas by performing less storage accesses.
@@ -44,6 +44,9 @@ library LogCompression {
 
             // Rounding division for signed numerator
             int256 lnWithError = (ln > 0 ? ln + _HALF_LOG_COMPRESSION_FACTOR : ln - _HALF_LOG_COMPRESSION_FACTOR);
+            if (lnWithError < LogExpMath.MIN_NATURAL_EXPONENT) lnWithError = LogExpMath.MIN_NATURAL_EXPONENT;
+            if (lnWithError > LogExpMath.MAX_NATURAL_EXPONENT) lnWithError = LogExpMath.MAX_NATURAL_EXPONENT;
+
             return lnWithError / _LOG_COMPRESSION_FACTOR;
         }
     }
