@@ -59,9 +59,11 @@ npm run test:uniswap
 
 You can find all audit reports under the audits folder.
 
-V1.0
+V2.0
 
-- [ABDK](./audits/ABDK_ReservoirFi_AMMCore_v_1_0.pdf)
+- [ABDK](./audits/ABDK_ReservoirFi_AMMCore_v_2_0.pdf)
+
+A re-audit on code changes was done in January 2025 and can be found under the same folder, as v3.
 
 ## Contributing
 
